@@ -1,0 +1,204 @@
+/* common part */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src: local(''),
+       url('../fonts/roboto.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+       url('../fonts/roboto.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: italic;
+  font-weight: 400;
+  src: local(''),
+       url('../fonts/roboto-italic.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+       url('../fonts/roboto-italic.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  src: local(''),
+       url('../fonts/roboto-700.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+       url('../fonts/roboto-700.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+:root {
+  --c-l1: #eeeeee;
+  --c-l2: #f9f9f9;
+  --c-l3: #ffffff;
+  --c-d1: #000000e6;
+  --c-d2: #000000e6;
+  --c-d3: #000000b3;
+  --c-red: #da4437;
+  --c-red2: #cd14042b;
+}
+
+body {
+  margin:0;
+  display: flex;
+  flex-flow: column;
+  min-height: 100vh;
+  background: var(--c-l2);
+  color: var(--c-d3);
+  font-family: Roboto,sans;
+}
+
+h1 {
+  font-size: clamp(1.5rem, 1.29rem + 1.07vw, 2.25rem);
+}
+
+footer, header, main {
+  padding: 12px clamp(1.375rem, 1.2rem + 0.89vw, 2rem);
+}
+
+footer, header {
+  background: var(--c-l1);
+  color: var(--c-dark);
+
+}
+header {
+  display: flex;
+  border-bottom: 1px solid rgb(0 0 0 / 15%);
+}
+footer {
+  border-top: 1px solid rgb(0 0 0 / 15%);
+}
+main {
+  flex-grow: 1;
+}
+
+#gohome {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  color: inherit;
+}
+
+#gohome:hover, #gohome:focus {
+  opacity: 0.8
+}
+
+#logo {
+  width: 50px;
+  height: 50px;
+  margin-right: 12px;
+}
+
+#sitetitle {
+  font-weight: bold;
+  font-size: 1.35rem;
+}
+
+#firstsec {
+  max-width: 600px;
+  text-align: center;
+}
+
+#firstsec, #analysis, #about {
+  margin: 65px auto 0;
+}
+
+#about {
+  text-align: center
+}
+
+input[type="file"] {
+    display: none;
+}
+.btn, .btn2 {
+    display: inline-block;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--c-l1);
+    font-weight: bold;
+    background: #cd1404;
+}
+
+.btn2 {
+  background: var(--c-l3);
+  color: var(--c-red)
+}
+
+.btn:hover, .btn:focus, .btn2:hover, .btn2:focus {
+  opacity: 0.8
+}
+
+.cont1 {
+  margin: 25px 0;
+}
+
+.anl {
+  max-width: 600px;
+  padding: 8px;
+  margin: auto;
+  border-bottom: 1px solid rgb(0 0 0 / 15%);
+}
+
+.anim {
+  animation: in-an .6s ease-in-out;
+}
+
+.anim2 {
+  animation: in-an2 .9s ease-in-out;
+}
+
+.metricfield {
+  max-width: 600px;
+  padding: 8px;
+  margin: auto;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between
+}
+
+.wrong {
+  background: var(--c-red2)
+}
+
+.gr {
+  stroke:rgb(0 0 0 / 35%);
+  stroke-width:1
+}
+
+.gr2 {
+  stroke:rgb(0 0 0 / 15%);
+  stroke-width:1
+}
+
+.labs {
+  font-size: 0.8rem;
+  fill: var(--c-d3);
+}
+
+g.bar:hover{
+  fill-opacity: 0.75;
+}
+
+.popup {
+  position: absolute;
+  border: 1px solid rgb(0 0 0 / 15%);
+  background: var(--c-l3);
+  padding: 5px;
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+  font-size: 0.85rem;
+}
+
+.chartwrap {
+  overflow: scroll;
+  position: relative;
+}
+
+@keyframes in-an {
+  0%   {opacity: 0;transform: translateY(12px)}
+  100% {opacity: 1;transform: translateY(0px)}
+}
+
+@keyframes in-an2 {
+  0%   {opacity: 0;transform: translateY(12px)}
+  20%  {opacity: 0;transform: translateY(12px)}
+  100% {opacity: 1;transform: translateY(0px)}
+}

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <title>EyeROI: Analyse ROIs of eye-trackig data</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="./css/app.css">
+    <!-- preload fonts -->
+    <link rel="preload" href="./fonts/roboto.woff2" as="font" type="font/woff2">
+    <link rel="preload" href="./fonts/roboto-italic.woff2" as="font" type="font/woff2">
+    <link rel="preload" href="./fonts/roboto-700.woff2" as="font" type="font/woff2">
+    <!-- favicon -->
+    <link rel="icon" href="favicon2.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
+    <link rel="manifest" href="./site.webmanifest">
+    <link rel="mask-icon" href="./safari-pinned-tab.svg" color="#39393b">
+    <meta name="msapplication-TileColor" content="#39393b">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- seo -->
+
+  </head>
+  <body>
+    <header>
+      <a id="gohome" href="./">
+        <img id="logo" src="./favicon2.svg" alt="Logo">
+        <span id="sitetitle" href="./">EyeROI</span>
+      </a>
+    </header>
+    <div id="paintarea"></div>
+    <main>
+      <section id="firstsec">
+        <h1>Analyse ROIs of eye-trackig data</h1>
+        <p>Test your pages in a lab environment powered by PageSpeed Insights. Then get tips and recommendations to improve your user experience. For field performance, see the PageSpeed Insights tool.</p>
+        <div class="cont1">
+          <label tabindex="0" for="file-upload" class="btn">
+              Upload file
+          </label>
+          <input id="file-upload" type="file"/>
+          <div tabindex="0" class="btn2">
+            Try demo data
+          </div>
+        </div>
+      </section>
+      <section class="anim" id="analysis" style="display:none">
+        <h2 class="anl">ROIs analysis</h2>
+        <section class="anim2">
+          <h3 class="anl">Eye-tracking data</h3>
+          <div class="metricfield"><span>File:</span><span id="file-name"></span></div>
+          <div class="metricfield"><span>Eye-tracking datatype:</span><span id="data-type">Processing...</span></div>
+        </section>
+      </section>
+      <section id="about">
+        <h2 class="anl">About EyeROI</h2>
+        <div class="chartwrap">
+            <svg id="ch" class="chart" width="800" aria-labelledby="title desc" role="img">
+            </svg>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <p>EyeROI, version 0.0.1</p>
+    </footer>
+    <script type="text/javascript">
+    var elmFileUpload = document.getElementById('file-upload');
+
+
+    var ar = [];
+    var ar_participants_dur = [];
+    var ar_participants_maxdur;
+
+
+    function onFileUploadChange(e) {
+    var file = e.target.files[0];
+    let filesuffix = file.name.split('.').pop();
+    document.getElementById('analysis').style.display = '';
+    document.getElementById('file-name').innerHTML = file.name + " (" + file.size/1000 + " kB)";
+      if (filesuffix == "txt") {
+        let fr = new FileReader();
+        fr.onload = function() {
+          preprocess_TXT(fr.result);
+        }
+        fr.readAsText(file);
+      } else {
+        showDataType(0);
+      }
+    }
+
+    function showDataType(a) {
+      let field = document.getElementById('data-type');
+      if (a == 0) {
+        field.innerHTML = "Not supported eye-tracking data";
+        field.parentElement.classList.add("wrong");
+        return
+      }
+      field.innerHTML = a;
+    }
+
+    var spl;
+    var participants;
+    var AOIs;
+    var AOIs_u_defined;
+    var AOIs_cols = ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928"];
+    var arr;
+
+    var popup;
+    var win;
+
+
+      //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
+
+    function preprocess_TXT(fr) {
+      let spl = fr.split('\r\n');
+      for (var i = 0; i < spl.length; i++) {
+        spl[i] = spl[i].split('\t');
+      }
+      console.log(spl[0]);
+      if (spl[0].includes("RecordingTime [ms]")) {
+        showDataType("Static Raw data (SMI)");
+        if (spl[0].includes("AOI Name Right")) {
+          //send file without header and useless last row
+          spl.shift();
+          spl.pop();
+          process_SMI_Raw_Static(spl);
+        }
+      }else {
+
+      }
+    }
+
+    function process_SMI_Raw_Static(spl) {
+      //get unique values (array) from column 2: participants
+      participants = Array.from(new Set(spl.map(x => x[2])));
+      //get unique values (array) from column 2: AOI
+      AOIs = Array.from(new Set(spl.map(x => x[5])));
+
+      let segmentID = 0;
+      for (var i = 0; i < participants.length; i++) {
+        //filter all columns by current participant
+        var currpar = spl.filter(function(value,index) {return value[2]==participants[i];});
+        let currAOI;
+        let currAOIstart;
+        let currAOIend;
+        let currAOIbase = currpar[0][0];
+
+        for (var a = 0; a < currpar.length; a++) {
+          if (a == 0) {
+            currAOI = currpar[a][5];
+            currAOIstart = currpar[a][0] - currAOIbase;
+          }
+          if (currAOI != currpar[a][5]) {
+            currAOI = currpar[a][5];
+            currAOIstart = currpar[a][0] - currAOIbase;
+            //currAOIend = currpar[a-1][0] - currAOIbase;
+            segmentID++;
+            //obj[participants[i]][segmentID-1]["end"] = currAOIend;
+          }
+          if (a+1 != currpar.length) {
+            //pokud je následující AOI odlišné - zaznamená end podle začátku dalšího segmentu
+            if (currAOI != currpar[a+1][5]) {
+              currAOIend = currpar[a+1][0] - currAOIbase;
+              let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
+              ar.push(crar);
+            }
+          }else {
+            //pokud na konci listu, přidá konec podle toho,
+            //jaký čas je teď + průměrná doba platnosti zírání
+            currAOIend = (currpar[a][0] - currAOIbase) + 0.4;
+            let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
+            ar.push(crar);
+            //pošle
+            ar_participants_dur.push(currAOIend)
+          }
+
+          if (a+1 == currpar.length) {
+            segmentID++;
+          }
+        }
+      }
+      ar_participants_maxdur = Math.max(...ar_participants_dur);
+      paintAbsoluteBars(ar);
+    }
+
+    function paintAbsoluteBars(a) {
+      let str = "";
+      let current_participant = a[0][0];
+      let ypos = -30;
+      let xaxispos = participants.length*30;
+      let str_vedlej_gridX;
+      let str_labels_gridX;
+
+      str = str + "<g class='gr x-gr' id='xGr'><line x1='50' x2='50' y1='0' y2='" + xaxispos + "'></line></g><g class='gr y-gr' id='yGr'><line x1='50' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line></g><svg id='charea' x='50' width='750'>";
+
+      //labels
+      let tanchor = "text-anchor='start'";
+      let brk = getPrettyBreak10(ar_participants_maxdur);
+      for (var j = 0; j < ar_participants_maxdur; j = j+brk) {
+        if (j+brk > ar_participants_maxdur) {
+          tanchor = "text-anchor='end'";
+        }
+        str_vedlej_gridX = str_vedlej_gridX + "<line x1='" + j/ar_participants_maxdur*100 +"%' x2='" + j/ar_participants_maxdur*100 +"%' y1='0' y2='" + xaxispos + "'></line>";
+        str_labels_gridX = str_labels_gridX + "<text x='" + j/ar_participants_maxdur*100 + "%' " + tanchor + " y='" + (Number(xaxispos) + 14) + "'>" + j + "</text>"
+        tanchor = "text-anchor='middle'";
+      }
+
+      str = str + "<g class='gr2 x-gr' id='xGr'>" + str_vedlej_gridX + "</g><g class='labs' id='xLabs'>" + str_labels_gridX + "</g>";
+
+      for (var k = 0; k < participants.length; k++) {
+        ypos = ypos + 30;
+        str = str + "<svg class='barwrap' y='" + ypos + "' id='bw" + participants[k] + "'>";
+        //neefektivní
+        for (var i = 0; i < a.length; i++) {
+          if (a[i][0] == participants[k]) {
+            let str2 = "<g id='b" + i + "' class='bar a" +  a[i][1] + "' fill='" + AOIs_cols[a[i][1]] + "'><rect x='" + (a[i][2] / ar_participants_maxdur) * 100 + "%' width='" + ((a[i][3] - a[i][2]) / ar_participants_maxdur) * 100 + "%' height='20'></rect></g>";
+            str = str + str2;
+          }
+        }
+        str = str + "</svg>";
+      }
+
+      //end tag
+      str = str + "</svg>";
+      document.getElementById('ch').style.height = xaxispos + 30;
+      document.getElementById('ch').innerHTML = str;
+
+      document.getElementById('charea').onmouseover = handler;
+      document.getElementById('charea').onmouseout = handler2;
+
+      function handler(event) {
+        // find the closest parent of the event target that
+        // matches the selector
+        var closest = event.target.closest('.bar');
+        if (closest && document.getElementById('charea').contains(closest)) {
+          // handle class event
+          if (typeof popup !== 'undefined') {
+            adjustPOPUP();
+            popup.style.display = "";
+          } else {
+            win = document.getElementsByClassName('chartwrap')[0];
+            popup = document.createElement('div');
+            popup.classList = 'popup';
+            adjustPOPUP();
+            win.appendChild(popup);
+          }
+
+          // console.log(getElementIndex(closest));
+          // console.log(getElementIndex(closest));
+          // console.log(closest.id);
+          // console.log(closest.id.slice(2));
+
+          function getElementIndex(node) {
+              var index = 0;
+              while ( (node = node.previousElementSibling) ) {
+                  index++;
+              }
+              return index;
+          }
+        }
+
+        function adjustPOPUP() {
+          popup.innerHTML = "<span>Participant: "+ar[closest.id.slice(1)][0]+"</span><span>AOI: "+AOIs[ar[closest.id.slice(1)][1]]+"</span><span>Start: "+ar[closest.id.slice(1)][2]+" ms</span><span>End: "+ar[closest.id.slice(1)][3]+" ms</span><span>Duration: "+(ar[closest.id.slice(1)][3]-ar[closest.id.slice(1)][2])+" ms</span>";
+          popup.style.top = closest.getBoundingClientRect().bottom - win.getBoundingClientRect().top + 4 + "px";
+          popup.style.left = closest.getBoundingClientRect().left - win.getBoundingClientRect().left + "px";
+        }
+      };
+      function handler2() {
+        popup.style.display = "none";
+      }
+      document.getElementById('charea').addEventListener('onMouseOut', function(event) {
+        // find the closest parent of the event target that
+        // matches the selector
+        var closest = event.target.closest('.bar');
+        if (closest && document.getElementById('charea').contains(closest)) {
+          // handle class event
+
+          console.log("end");
+        }
+      });
+    }
+
+    function getPrettyBreak10(n) {
+      let res = n/10;
+      let num_of_digits = Math.log(res) * Math.LOG10E + 1 | 0;
+      res = (res/(10**(num_of_digits))).toFixed(1);
+      return res*(10**(num_of_digits))
+    }
+
+    function getElementIndex(node) {
+        var index = 0;
+        while ( (node = node.previousElementSibling) ) {
+            index++;
+        }
+        return index;
+    }
+
+    elmFileUpload.addEventListener('change',onFileUploadChange,false);
+
+
+
+    </script>
+  </body>
+</html>
