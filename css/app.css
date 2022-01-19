@@ -1,28 +1,3 @@
-/* common part */
-@font-face {
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 400;
-  src: local(''),
-       url('../fonts/roboto.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('../fonts/roboto.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-}
-@font-face {
-  font-family: 'Roboto';
-  font-style: italic;
-  font-weight: 400;
-  src: local(''),
-       url('../fonts/roboto-italic.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('../fonts/roboto-italic.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-}
-@font-face {
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 700;
-  src: local(''),
-       url('../fonts/roboto-700.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('../fonts/roboto-700.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-}
 :root {
   --c-l1: #eeeeee;
   --c-l2: #f9f9f9;
@@ -41,7 +16,7 @@ body {
   min-height: 100vh;
   background: var(--c-l2);
   color: var(--c-d3);
-  font-family: Roboto,sans;
+  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
 }
 
 h1 {
@@ -59,7 +34,7 @@ footer, header {
 }
 header {
   display: flex;
-  border-bottom: 1px solid rgb(0 0 0 / 15%);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
 }
 footer {
   border-top: 1px solid rgb(0 0 0 / 15%);
@@ -80,8 +55,6 @@ main {
 }
 
 #logo {
-  width: 50px;
-  height: 50px;
   margin-right: 12px;
 }
 
@@ -114,6 +87,7 @@ input[type="file"] {
     color: var(--c-l1);
     font-weight: bold;
     background: #cd1404;
+    border-radius: 5px
 }
 
 .btn2 {
@@ -121,7 +95,45 @@ input[type="file"] {
   color: var(--c-red)
 }
 
-.btn:hover, .btn:focus, .btn2:hover, .btn2:focus {
+.btn3 {
+  font-size: .9rem;
+  cursor: pointer;
+  border-radius: 5px;
+  display: inline-flex;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+  overflow: hidden;
+}
+
+.btn3-relative  {
+  color: #585858;
+  background: white;
+}
+
+.btn3-absolute{
+  color: white;
+  background: var(--c-red);
+}
+
+.btn3-absolute,.btn3-relative {
+  padding: 5px 10px;
+  transition: all .3s ease-in-out;
+}
+
+.activebtn3 > .btn3-relative {
+  color: white;
+  background: var(--c-red);
+}
+
+.activebtn3 > .btn3-absolute {
+  color: #585858;
+  background: white;
+}
+
+
+.activebtn3 {
+}
+
+.btn:hover, .btn:focus, .btn2:hover, .btn2:focus, .btn3-relative:hover, .btn3-absolute:hover {
   opacity: 0.8
 }
 
@@ -172,33 +184,47 @@ input[type="file"] {
   fill: var(--c-d3);
 }
 
-g.bar:hover{
-  fill-opacity: 0.75;
-}
 
 .popup {
   position: absolute;
   border: 1px solid rgb(0 0 0 / 15%);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
   background: var(--c-l3);
   padding: 5px;
   display: flex;
   flex-flow: column;
   align-items: flex-start;
   font-size: 0.85rem;
+  border-radius: 5px;
+}
+
+#chartsec {
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+  width: fit-content;
+  margin: 12px auto;
+}
+
+.cardtitle {
+  text-align: center;
+  margin: 0
+}
+
+.btnholder {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 12px 0;
 }
 
 .chartwrap {
-  overflow: scroll;
+  overflow: auto;
   position: relative;
+  width: fit-content;
 }
 
 @keyframes in-an {
   0%   {opacity: 0;transform: translateY(12px)}
-  100% {opacity: 1;transform: translateY(0px)}
-}
-
-@keyframes in-an2 {
-  0%   {opacity: 0;transform: translateY(12px)}
-  20%  {opacity: 0;transform: translateY(12px)}
   100% {opacity: 1;transform: translateY(0px)}
 }
