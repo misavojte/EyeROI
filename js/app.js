@@ -1,7 +1,10 @@
 var elmFileUpload = document.getElementById('file-upload');
 
 
-var ar = [];
+var ar = {
+  endTime: [],
+  AOIid: []
+};
 var ar_participants_dur = [];
 var ar_participants_maxdur;
 
@@ -35,8 +38,9 @@ function showDataType(a) {
 }
 
 var spl;
-var participants;
-var AOIs;
+var participants = [];
+var participants_highest_ix = [];
+var AOIs = [];
 var AOIs_u_defined;
 var AOIs_cols = ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928"];
 var arr;
@@ -48,18 +52,21 @@ var win;
   //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
 
 function preprocess_TXT(fr) {
+  let colDelimiters = ['\t',',',';'];
+  let firstRows = fr.split('\r\n', 3);
+  //find column delimiter
+  //let colDelimiter = colDelimiters.find(item => firstRows[0].split(item).length === firstRows[2].split(item).length && firstRows[0].split(item).length > 1);
+
   let spl = fr.split('\r\n');
-  for (var i = 0; i < spl.length; i++) {
-    spl[i] = spl[i].split('\t');
-  }
-  console.log(spl[0]);
+
+  //console.log(spl[0]);
   if (spl[0].includes("RecordingTime [ms]")) {
     showDataType("Static Raw data (SMI)");
     if (spl[0].includes("AOI Name Right")) {
       //send file without header and useless last row
-      spl.shift();
+      // spl.shift();
       spl.pop();
-      process_SMI_Raw_Static(spl);
+      process_SMI_Raw_Static(spl.map(x=>x.split('\t')));
     }
   }else {
 
@@ -67,54 +74,101 @@ function preprocess_TXT(fr) {
 }
 
 function process_SMI_Raw_Static(spl) {
-  //get unique values (array) from column 2: participants
-  participants = Array.from(new Set(spl.map(x => x[2])));
-  //get unique values (array) from column 2: AOI
-  AOIs = Array.from(new Set(spl.map(x => x[5])));
-
-  let segmentID = 0;
-  for (var i = 0; i < participants.length; i++) {
-    //filter all columns by current participant
-    var currpar = spl.filter(function(value,index) {return value[2]==participants[i];});
-    let currAOI;
-    let currAOIstart;
-    let currAOIend;
-    let currAOIbase = currpar[0][0];
-
-    for (var a = 0; a < currpar.length; a++) {
-      if (a == 0) {
-        currAOI = currpar[a][5];
-        currAOIstart = currpar[a][0] - currAOIbase;
-      }
-      if (currAOI != currpar[a][5]) {
-        currAOI = currpar[a][5];
-        currAOIstart = currpar[a][0] - currAOIbase;
-        //currAOIend = currpar[a-1][0] - currAOIbase;
-        segmentID++;
-        //obj[participants[i]][segmentID-1]["end"] = currAOIend;
-      }
-      if (a+1 != currpar.length) {
-        //pokud je následující AOI odlišné - zaznamená end podle začátku dalšího segmentu
-        if (currAOI != currpar[a+1][5]) {
-          currAOIend = currpar[a+1][0] - currAOIbase;
-          let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
-          ar.push(crar);
-        }
-      }else {
-        //pokud na konci listu, přidá konec podle toho,
-        //jaký čas je teď + průměrná doba platnosti zírání
-        currAOIend = (currpar[a][0] - currAOIbase) + 0.4;
-        let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
-        ar.push(crar);
-        //pošle
-        ar_participants_dur.push(currAOIend)
-      }
-
-      if (a+1 == currpar.length) {
-        segmentID++;
-      }
+  let newSegment = true;
+  let baseTime = 0;
+  let segmentAOIix = -1;
+  //from 1 to skip header
+  for (var i = 1; i < spl.length-1; i++) {
+    if (newSegment === true) {
+      firstRow(i);
+    }
+    if (spl[i][2] !== spl[i+1][2]) {
+      lastRow(i);
+    }
+    else if (spl[i][5] !== spl[i+1][5]) {
+      lastAOIRow(i);
     }
   }
+  //last row of array
+  if (newSegment) {
+    firstRow(spl.length-1);
+  }
+  lastRow(spl.length-1);
+
+  function firstRow(x) {
+    baseTime = spl[x][0];
+    newSegment = false;
+  }
+  function lastRow(x) {
+    lastAOIRow(x);
+    newSegment = true;
+    participants_highest_ix.push(segmentAOIix);
+    if (!participants.includes(spl[x][2])) {
+      participants.push(spl[x][2]);
+    }
+    ar_participants_dur.push(spl[x][0]-baseTime);
+  }
+  function lastAOIRow(x) {
+    segmentAOIix++;
+    if (!AOIs.includes(spl[x][5])) {
+      AOIs.push(spl[x][5]);
+    }
+    ar.AOIid.push(AOIs.indexOf(spl[x][5]));
+    ar.endTime.push(spl[x][0]-baseTime);
+  }
+
+
+  // //get unique values (array) from column 2: participants
+  // //nadbytečné - dát do jedné for loop
+  // participants = Array.from(new Set(spl.map(x => x[2])));
+  // //get unique values (array) from column 5: AOI
+  // //nadbytečné - dát do jedné for loop
+  // AOIs = Array.from(new Set(spl.map(x => x[5])));
+  //
+  // //totálně weird - měla být jedna for loop
+  // let segmentID = 0;
+  // for (var i = 0; i < participants.length; i++) {
+  //   //filter all columns by current participant
+  //   var currpar = spl.filter(function(value,index) {return value[2]==participants[i];});
+  //   let currAOI;
+  //   let currAOIstart;
+  //   let currAOIend;
+  //   let currAOIbase = currpar[0][0];
+  //
+  //   for (var a = 0; a < currpar.length; a++) {
+  //     if (a == 0) {
+  //       currAOI = currpar[a][5];
+  //       currAOIstart = currpar[a][0] - currAOIbase;
+  //     }
+  //     if (currAOI != currpar[a][5]) {
+  //       currAOI = currpar[a][5];
+  //       currAOIstart = currpar[a][0] - currAOIbase;
+  //       //currAOIend = currpar[a-1][0] - currAOIbase;
+  //       segmentID++;
+  //       //obj[participants[i]][segmentID-1]["end"] = currAOIend;
+  //     }
+  //     if (a+1 != currpar.length) {
+  //       //pokud je následující AOI odlišné - zaznamená end podle začátku dalšího segmentu
+  //       if (currAOI != currpar[a+1][5]) {
+  //         currAOIend = currpar[a+1][0] - currAOIbase;
+  //         let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
+  //         ar.push(crar);
+  //       }
+  //     }else {
+  //       //pokud na konci listu, přidá konec podle toho,
+  //       //jaký čas je teď + průměrná doba platnosti zírání
+  //       currAOIend = (currpar[a][0] - currAOIbase) + 0.4;
+  //       let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
+  //       ar.push(crar);
+  //       //pošle
+  //       ar_participants_dur.push(currAOIend)
+  //     }
+  //
+  //     if (a+1 == currpar.length) {
+  //       segmentID++;
+  //     }
+  //   }
+  // }
   ar_participants_maxdur = Math.max(...ar_participants_dur);
   printSequenceChart(ar);
 }
@@ -133,7 +187,7 @@ function printSequenceChart(a) {
 
 function paintAbsoluteBars(a) {
 
-  let current_participant = a[0][0];
+  // let current_participant = a[0][0];
   let ypos = -30;
   let xaxispos = participants.length*30;
   let str_vedlej_gridX = "";
@@ -171,14 +225,22 @@ function paintAbsoluteBars(a) {
   str = str + "<g class='x-gr gr2'>" + str_vedlej_gridX + "</g><g class='labs' id='xLabs'>" + str_labels_gridX + "</g>";
 
   for (var k = 0; k < participants.length; k++) {
+    if (k === 0) {
+      segStart = 0;
+    } else {
+      segStart = participants_highest_ix[k-1] + 1;
+    }
+    segEnd = participants_highest_ix[k];
     ypos += 30;
     str = str + "<svg class='barwrap' y='" + ypos + "' id='bw" + participants[k] + "'height='20' width='" + ((ar_participants_dur[k]/ar_participants_maxdur)*100) +"%'>";
-    //neefektivní - jede přes celý array namísto jen místa, kde je aktuální uživatel
-    for (var i = 0; i < a.length; i++) {
-      if (a[i][0] == participants[k]) {
-        let str2 = "<rect class='a" +  a[i][1] + "' x='" + (a[i][2] / ar_participants_dur[k]) * 100 + "%' width='" + ((a[i][3] - a[i][2]) / ar_participants_dur[k]) * 100 + "%'></rect>";
+
+    for (var i = segStart; i < segEnd+1; i++) {
+        let recStart = ar.endTime[i-1];
+        if (i === segStart) {
+          recStart = 0;
+        }
+        let str2 = "<rect sid='" + i + "' class='a" +  ar.AOIid[i] + "' x='" + (recStart / ar_participants_dur[k]) * 100 + "%' width='" + ((ar.endTime[i] - recStart) / ar_participants_dur[k]) * 100 + "%'></rect>";
         str = str + str2;
-      }
     }
     str += "</svg>";
     //create inner HTML string for Y main labels component
@@ -217,13 +279,13 @@ function handler(event) {
   if (closest && document.getElementById('charea').contains(closest)) {
     // handle class event
     if (typeof popup !== 'undefined') {
-      adjustPOPUP(closest);
+      adjustPOPUP(closest.getAttribute('sid'));
       popup.style.display = "";
     } else {
       win = document.getElementsByClassName('chartwrap')[0];
       popup = document.createElement('div');
       popup.classList = 'popup';
-      adjustPOPUP(closest);
+      adjustPOPUP(closest.getAttribute('sid'));
       win.appendChild(popup);
     }
 
@@ -241,9 +303,10 @@ function handler(event) {
     // }
   }
 
-  function adjustPOPUP() {
-    let id = closest.className.baseVal.slice(1);
-    popup.innerHTML = "<span>Participant: "+ar[id][0]+"</span><span>AOI: "+AOIs[ar[id][1]]+"</span><span>Start: "+ar[id][2]+" ms</span><span>End: "+ar[id][3]+" ms</span><span>Duration: "+(ar[id][3]-ar[id][2])+" ms</span>";
+  function adjustPOPUP(id) {
+    let startTime = retrieveStartTime(id);
+    console.log(id);
+    popup.innerHTML = "<span>Participant: "+ participants[participants_highest_ix.findIndex(x=>x>=id)] +"</span><span>AOI: "+AOIs[ar.AOIid[id]]+"</span><span>Start: "+startTime+" ms</span><span>End: "+ar.endTime[id]+" ms</span><span>Duration: "+(ar.endTime[id] - startTime)+" ms</span>";
     popup.style.top = closest.getBoundingClientRect().bottom - win.getBoundingClientRect().top + 4 + "px";
     popup.style.left = closest.getBoundingClientRect().left - win.getBoundingClientRect().left + "px";
   }
@@ -304,6 +367,14 @@ function printNewAniOutput(htmltag, csstag, sectionindex, html) {
 
 
 elmFileUpload.addEventListener('change',onFileUploadChange,false);
+
+function retrieveStartTime(index) {
+  console.log(index);
+  if (participants_highest_ix.includes(index-1) || index-1 < 0) {
+    return 0
+  }
+  return ar.endTime[index-1]
+}
 
 // třídění na později
 // indices.sort(function (a, b) { return array1[a] < array1[b] ? -1 : array1[a] > array1[b] ? 1 : 0; });
