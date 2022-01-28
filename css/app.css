@@ -219,6 +219,7 @@ input[type="file"] {
   width: 100%;
   max-width: 900px;
   margin: 12px auto;
+  box-sizing: border-box;
 }
 
 .cardtitle {

@@ -18,8 +18,6 @@ var participants = {
   highestAOISegmentId: []
 };
 
-var dataTooltipTimeout
-
 
 function onFileUploadChange(e) {
 let file = e.target.files[0];
@@ -153,7 +151,7 @@ function paintAbsoluteBars() {
   // let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" role="img">';
 
   let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='" + (xaxispos + 30) + "'>";
-  str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze' />"
+  str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>"
   //add style to SVG string
   str += '<style>rect{height:100%}';
   for (var i = 0; i < aoiCategories.colors.length; i++) {
@@ -190,6 +188,7 @@ function paintAbsoluteBars() {
     segEnd = participants.highestAOISegmentId[k];
     ypos += 30;
     str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "'height='20' width='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%'>";
+    str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
 
     for (var i = segStart; i < segEnd+1; i++) {
         let recStart = getStartTime(i); //start pos of svg rectangle
@@ -247,12 +246,9 @@ function handler(event) {
     popup.style.top = window.scrollY + rectBoundingBox.bottom + "px";
     let xPosition = event.pageX;
     if (event.pageX + 155 > window.scrollX + document.body.clientWidth) {
-      console.log("event: " + event.pageX + " clientWidth: " + document.body.clientWidth);
       xPosition = window.scrollX + document.body.clientWidth - 155;
     }
     popup.style.left = xPosition + "px";
-    // popup.style.top = closest.getBoundingClientRect().bottom - win.getBoundingClientRect().top + 4 + "px";
-    // popup.style.left = closest.getBoundingClientRect().left - win.getBoundingClientRect().left + "px";
   }
 };
 
@@ -274,19 +270,43 @@ function getPrettyBreakStep(numberToBreak, numberOfSteps = 10) {
 //other event handlers
 function handleRelative() {
   const timelineSwitch = document.getElementsByClassName('torelative')[0];
-  let barwrap = document.getElementsByClassName('barwrap');
+  const barwrap = document.getElementsByClassName('barwrap');
+
   if (!timelineSwitch.classList.contains('activebtn3')) {
     for (var i = 0; i < barwrap.length; i++) {
-      barwrap[i].setAttribute('width', '100%');
+      const from = ((participants.sessionDuration[i]/participants.maxDuration)*100)+"%";
+      const to = 100+"%";
+      let animateTag = barwrap[i].getElementsByTagName('animate')[0];
+
+        animateTag.setAttribute('from', from);
+        animateTag.setAttribute('to', to);
+        animateTag.beginElement();
+
     }
+
     timelineSwitch.classList.add('activebtn3');
   } else {
     for (var i = 0; i < barwrap.length; i++) {
-      let bwwidth = (participants.sessionDuration[i]/participants.maxDuration)*100 + '%';
-      barwrap[i].setAttribute('width', bwwidth);
+      const to = ((participants.sessionDuration[i]/participants.maxDuration)*100)+"%";
+      const from = 100+"%";
+      let animateTag = barwrap[i].getElementsByTagName('animate')[0];
+
+        animateTag.setAttribute('from', from);
+        animateTag.setAttribute('to', to);
+        animateTag.beginElement();
     }
     timelineSwitch.classList.remove('activebtn3');
   }
+  // function addAnimateTag(from, to) {
+  //   animateTag = document.createElement("animate");
+  //   animateTag.setAttribute('attributeName', 'width');
+  //   animateTag.setAttribute('dur', '0.3s');
+  //   animateTag.setAttribute('fill', 'freeze');
+  //   animateTag.setAttribute('from', from);
+  //   animateTag.setAttribute('to', to);
+  //   barwrap[i].appendChild(animateTag);
+  //   animateTag.beginElement();
+  // }
 }
 
 
@@ -318,7 +338,7 @@ function getStartTime(index) {
 }
 
 
-function zoomScarf(isZoomIn) {
+function zoomScarf() {
   const currentButton = event.target.id;
   const zoomOutButton = document.getElementById('zoomOutScarf');
   const chartAnimation = document.getElementById('chareaAni');
