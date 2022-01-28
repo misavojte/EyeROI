@@ -95,13 +95,23 @@ input[type="file"] {
   color: var(--c-red)
 }
 
-.btn3 {
+.btn3, .btn4 {
   font-size: .9rem;
   cursor: pointer;
   border-radius: 5px;
   display: inline-flex;
   box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
   overflow: hidden;
+}
+
+.btn4 {
+  font-weight: 900;
+  background: white
+}
+
+.deactivated {
+  color: #dad0d0;
+  cursor: not-allowed
 }
 
 .btn3-relative  {
@@ -114,7 +124,7 @@ input[type="file"] {
   background: var(--c-red);
 }
 
-.btn3-absolute,.btn3-relative {
+.btn3-absolute,.btn3-relative, .btn4 {
   padding: 5px 10px;
   transition: all .3s ease-in-out;
 }
@@ -133,7 +143,7 @@ input[type="file"] {
 .activebtn3 {
 }
 
-.btn:hover, .btn:focus, .btn2:hover, .btn2:focus, .btn3-relative:hover, .btn3-absolute:hover {
+.btn:hover, .btn:focus, .btn2:hover, .btn2:focus, .btn3-relative:hover, .btn3-absolute:hover, .btn4:hover {
   opacity: 0.8
 }
 
@@ -187,6 +197,7 @@ input[type="file"] {
 
 .popup {
   position: absolute;
+  width: 155px;
   border: 1px solid rgb(0 0 0 / 15%);
   box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
   background: var(--c-l3);
@@ -194,15 +205,19 @@ input[type="file"] {
   display: flex;
   flex-flow: column;
   align-items: flex-start;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   border-radius: 5px;
+  animation: in-an .4s ease-in-out
 }
+
+
 
 #chartsec {
   padding: 16px;
   border-radius: 12px;
   box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
-  width: fit-content;
+  width: 100%;
+  max-width: 900px;
   margin: 12px auto;
 }
 
@@ -219,12 +234,34 @@ input[type="file"] {
 }
 
 .chartwrap {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+}
+
+.charea-holder {
+  width: 100%;
   overflow: auto;
-  position: relative;
-  width: fit-content;
+}
+
+#charea {
+  min-width: 500px
+}
+
+#charea rect:hover {
+  fill-opacity: 0.75;
+  stroke:black
+}
+#charea rect {
+  transition: .3s all ease-in-out
 }
 
 @keyframes in-an {
-  0%   {opacity: 0;transform: translateY(12px)}
-  100% {opacity: 1;transform: translateY(0px)}
+  0%   {opacity: 0}
+  100% {opacity: 1}
+}
+
+@keyframes fade-out {
+  0%   {opacity: 1}
+  50% {opacity: 1}
+  100% {opacity: 0}
 }

@@ -1,12 +1,24 @@
 var elmFileUpload = document.getElementById('file-upload');
 
 
-var ar = {
+var aoiSegments = {
   endTime: [],
   AOIid: []
 };
-var ar_participants_dur = [];
-var ar_participants_maxdur;
+
+var aoiCategories = {
+  names: [],
+  colors: ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928"] //predefined
+};
+
+var participants = {
+  sessionDuration: [],
+  maxDuration: null,
+  names: [],
+  highestAOISegmentId: []
+};
+
+var dataTooltipTimeout
 
 
 function onFileUploadChange(e) {
@@ -37,14 +49,6 @@ function showDataType(a) {
   printNewAniOutput('div', css, 1, '<span>Data type:</span><span>'+a+'</span>')
 }
 
-var spl;
-var participants = [];
-var participants_highest_ix = [];
-var AOIs = [];
-var AOIs_u_defined;
-var AOIs_cols = ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928"];
-var arr;
-
 var popup;
 var win;
 
@@ -74,122 +78,71 @@ function preprocess_TXT(fr) {
 }
 
 function process_SMI_Raw_Static(spl) {
-  let newSegment = true;
+  let isNewSegment = true;
   let baseTime = 0;
   let segmentAOIix = -1;
+  let iterateTo = spl.length-1 //skip last one (different processing on last row)
   //from 1 to skip header
-  for (var i = 1; i < spl.length-1; i++) {
-    if (newSegment === true) {
+  for (var i = 1; i < iterateTo; i++) {
+    if (isNewSegment === true) {
       firstRow(i);
     }
     if (spl[i][2] !== spl[i+1][2]) {
-      lastRow(i);
+      lastParticipantRow(i);
     }
     else if (spl[i][5] !== spl[i+1][5]) {
       lastAOIRow(i);
     }
   }
   //last row of array
-  if (newSegment) {
-    firstRow(spl.length-1);
-  }
-  lastRow(spl.length-1);
+  if (isNewSegment) { firstRow(spl.length-1) }
+  lastParticipantRow(spl.length-1);
 
   function firstRow(x) {
     baseTime = spl[x][0];
-    newSegment = false;
+    isNewSegment = false;
   }
-  function lastRow(x) {
+  function lastParticipantRow(x) {
     lastAOIRow(x);
-    newSegment = true;
-    participants_highest_ix.push(segmentAOIix);
-    if (!participants.includes(spl[x][2])) {
-      participants.push(spl[x][2]);
+    isNewSegment = true;
+    participants.highestAOISegmentId.push(segmentAOIix);
+    if (!participants.names.includes(spl[x][2])) {
+      participants.names.push(spl[x][2]);
     }
-    ar_participants_dur.push(spl[x][0]-baseTime);
+    participants.sessionDuration.push(spl[x][0]-baseTime);
   }
   function lastAOIRow(x) {
     segmentAOIix++;
-    if (!AOIs.includes(spl[x][5])) {
-      AOIs.push(spl[x][5]);
+    if (!aoiCategories.names.includes(spl[x][5])) {
+      aoiCategories.names.push(spl[x][5]);
     }
-    ar.AOIid.push(AOIs.indexOf(spl[x][5]));
-    ar.endTime.push(spl[x][0]-baseTime);
+    aoiSegments.AOIid.push(aoiCategories.names.indexOf(spl[x][5]));
+    aoiSegments.endTime.push(spl[x][0]-baseTime);
   }
-
-
-  // //get unique values (array) from column 2: participants
-  // //nadbytečné - dát do jedné for loop
-  // participants = Array.from(new Set(spl.map(x => x[2])));
-  // //get unique values (array) from column 5: AOI
-  // //nadbytečné - dát do jedné for loop
-  // AOIs = Array.from(new Set(spl.map(x => x[5])));
-  //
-  // //totálně weird - měla být jedna for loop
-  // let segmentID = 0;
-  // for (var i = 0; i < participants.length; i++) {
-  //   //filter all columns by current participant
-  //   var currpar = spl.filter(function(value,index) {return value[2]==participants[i];});
-  //   let currAOI;
-  //   let currAOIstart;
-  //   let currAOIend;
-  //   let currAOIbase = currpar[0][0];
-  //
-  //   for (var a = 0; a < currpar.length; a++) {
-  //     if (a == 0) {
-  //       currAOI = currpar[a][5];
-  //       currAOIstart = currpar[a][0] - currAOIbase;
-  //     }
-  //     if (currAOI != currpar[a][5]) {
-  //       currAOI = currpar[a][5];
-  //       currAOIstart = currpar[a][0] - currAOIbase;
-  //       //currAOIend = currpar[a-1][0] - currAOIbase;
-  //       segmentID++;
-  //       //obj[participants[i]][segmentID-1]["end"] = currAOIend;
-  //     }
-  //     if (a+1 != currpar.length) {
-  //       //pokud je následující AOI odlišné - zaznamená end podle začátku dalšího segmentu
-  //       if (currAOI != currpar[a+1][5]) {
-  //         currAOIend = currpar[a+1][0] - currAOIbase;
-  //         let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
-  //         ar.push(crar);
-  //       }
-  //     }else {
-  //       //pokud na konci listu, přidá konec podle toho,
-  //       //jaký čas je teď + průměrná doba platnosti zírání
-  //       currAOIend = (currpar[a][0] - currAOIbase) + 0.4;
-  //       let crar = new Array(participants[i],AOIs.indexOf(currAOI),currAOIstart,currAOIend);
-  //       ar.push(crar);
-  //       //pošle
-  //       ar_participants_dur.push(currAOIend)
-  //     }
-  //
-  //     if (a+1 == currpar.length) {
-  //       segmentID++;
-  //     }
-  //   }
-  // }
-  ar_participants_maxdur = Math.max(...ar_participants_dur);
-  printSequenceChart(ar);
+  //get maximu length of session - used for SVG chart
+  participants.maxDuration = Math.max(...participants.sessionDuration);
+  printSequenceChart();
 }
 
-function printSequenceChart(a) {
+function printSequenceChart() {
   let inner = '<h3 class="cardtitle">Sequence chart (Scarf plot)</h3>';
-  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div></div>';
+  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div><div id="zoomInScarf" class="btn4">+</div><div id="zoomOutScarf" class="btn4 deactivated">-</div></div>';
   inner += '<div class="chartwrap">';
-  inner += paintAbsoluteBars(a);
+  inner += paintAbsoluteBars();
   inner += '</div>';
   document.getElementById('chartsec').innerHTML = inner;
-  document.getElementById('charea').onmouseover = handler;
-  document.getElementById('charea').onmouseout = handler2;
+  document.body.onmouseover = handler;
+  //document.getElementById('charea').onmouseleave = handler2;
   document.getElementsByClassName('torelative')[0].onclick = handleRelative;
+  document.getElementById('zoomInScarf').onclick = zoomScarf;
+  document.getElementById('zoomOutScarf').onclick = zoomScarf;
 }
 
-function paintAbsoluteBars(a) {
+function paintAbsoluteBars() {
 
   // let current_participant = a[0][0];
   let ypos = -30;
-  let xaxispos = participants.length*30;
+  let xaxispos = participants.names.length*30;
   let str_vedlej_gridX = "";
   let str_labels_gridX = "";
   let yLabInnerStr = "";
@@ -197,151 +150,142 @@ function paintAbsoluteBars(a) {
   let finalSVGwidth = 800;
 
   //start constructing SVG string
-  let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" aria-labelledby="title desc" role="img">';
+  // let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" role="img">';
+
+  let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='" + (xaxispos + 30) + "'>";
+  str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze' />"
   //add style to SVG string
-  str += '<style>rect{height:100%}rect:hover{fill-opacity: 0.75}';
-  for (var i = 0; i < AOIs_cols.length; i++) {
-    str += '.a' + i + '{fill:' + AOIs_cols[i] + '}';
+  str += '<style>rect{height:100%}';
+  for (var i = 0; i < aoiCategories.colors.length; i++) {
+    str += '.a' + i + '{fill:' + aoiCategories.colors[i] + '}';
   }
   str += '</style>';
   //add main X,Y axes and start constructing main chart area
-  str += "<svg id='charea' x='" + gapForYLabs + "' width='" + (finalSVGwidth-gapForYLabs) + "'>";
+  // str += "<svg id='charea' x='" + gapForYLabs + "' width='" + (finalSVGwidth-gapForYLabs) + "'>";
+
   str += "<g><line class='gr y-gr' id='yGr' x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>";
   str += "<line class='gr x-gr' id='xGr' x1='0' x2='0' y1='" + xaxispos + "' y2='0'></line></g>";
 
   //add X axes labels and support Y axes
   //Y axes will be rendered under the sequence bars
   let tanchor = "text-anchor='start'";
-  let brk = getPrettyBreak10(ar_participants_maxdur);
-  for (var j = 0; j < ar_participants_maxdur; j = j+brk) {
-    if (j+brk > ar_participants_maxdur) {
+  const breakStep = getPrettyBreakStep(participants.maxDuration);
+  for (var j = 0; j < participants.maxDuration; j = j+breakStep) {
+    if (j+breakStep > participants.maxDuration) {
       tanchor = "text-anchor='end'";
     }
-    str_vedlej_gridX = str_vedlej_gridX + "<line x1='" + j/ar_participants_maxdur*100 +"%' x2='" + j/ar_participants_maxdur*100 +"%' y1='0' y2='" + xaxispos + "'></line>";
-    str_labels_gridX = str_labels_gridX + "<text x='" + j/ar_participants_maxdur*100 + "%' " + tanchor + " y='" + (Number(xaxispos) + 14) + "'>" + j + "</text>"
+    str_vedlej_gridX = str_vedlej_gridX + "<line x1='" + j/participants.maxDuration*100 +"%' x2='" + j/participants.maxDuration*100 +"%' y1='0' y2='" + xaxispos + "'></line>";
+    str_labels_gridX = str_labels_gridX + "<text x='" + j/participants.maxDuration*100 + "%' " + tanchor + " y='" + (Number(xaxispos) + 14) + "'>" + j + "</text>"
     tanchor = "text-anchor='middle'";
   }
 
   str = str + "<g class='x-gr gr2'>" + str_vedlej_gridX + "</g><g class='labs' id='xLabs'>" + str_labels_gridX + "</g>";
 
-  for (var k = 0; k < participants.length; k++) {
+  for (var k = 0; k < participants.names.length; k++) {
     if (k === 0) {
       segStart = 0;
     } else {
-      segStart = participants_highest_ix[k-1] + 1;
+      segStart = participants.highestAOISegmentId[k-1] + 1;
     }
-    segEnd = participants_highest_ix[k];
+    segEnd = participants.highestAOISegmentId[k];
     ypos += 30;
-    str = str + "<svg class='barwrap' y='" + ypos + "' id='bw" + participants[k] + "'height='20' width='" + ((ar_participants_dur[k]/ar_participants_maxdur)*100) +"%'>";
+    str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "'height='20' width='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%'>";
 
     for (var i = segStart; i < segEnd+1; i++) {
-        let recStart = ar.endTime[i-1];
-        if (i === segStart) {
-          recStart = 0;
-        }
-        let str2 = "<rect sid='" + i + "' class='a" +  ar.AOIid[i] + "' x='" + (recStart / ar_participants_dur[k]) * 100 + "%' width='" + ((ar.endTime[i] - recStart) / ar_participants_dur[k]) * 100 + "%'></rect>";
-        str = str + str2;
+        let recStart = getStartTime(i); //start pos of svg rectangle
+        str += "<rect data-sid='" + i + "' class='a" +  aoiSegments.AOIid[i] + "' x='" + (recStart / participants.sessionDuration[k]) * 100 + "%' width='" + ((aoiSegments.endTime[i] - recStart) / participants.sessionDuration[k]) * 100 + "%'></rect>";
     }
     str += "</svg>";
     //create inner HTML string for Y main labels component
     //it will be inserted to SVG on the next lines
-    yLabInnerStr += "<text y='" + (Number(ypos) + 15) + "'>" + participants[k] + "</text>";
+    yLabInnerStr += "<text y='" + (Number(ypos) + 15) + "'>" + participants.names[k] + "</text>";
   }
 
-  str += "</svg>";
+  str += "</svg></div>";
+  let labsstr = "<svg xmlns='http://www.w3.org/2000/svg' id='chylabs' width='100%' height='" + (xaxispos + 30) + "'>";
   //add y main labels component
-  str += "<g class='labs' x='0'>" + yLabInnerStr + "</g>";
+  labsstr += "<g class='labs' x='0'>" + yLabInnerStr + "</g>";
   //end tag
-  str += "</svg>";
+  labsstr += "</svg>";
+  str = labsstr + str;
 
   return str;
-
-  // document.getElementById('charea').addEventListener('onMouseOut', function(event) {
-  //   // find the closest parent of the event target that
-  //   // matches the selector
-  //   var closest = event.target.closest('.bar');
-  //   if (closest && document.getElementById('charea').contains(closest)) {
-  //     // handle class event
-  //
-  //     console.log("end");
-  //   }
-  // });
 }
 
-function handler2() {
-  popup.style.display = "none";
-}
 
 function handler(event) {
   // find the closest parent of the event target that
   // matches the selector
-  let closest = event.target.closest('rect');
-  if (closest && document.getElementById('charea').contains(closest)) {
+  const closest = event.target.closest('rect');
+  if (!closest) {
+    if (!event.target.closest('#datatooltip')) {
+      if (popup) {
+        popup.style.display = 'none';
+      }
+    }
+    return
+  }
     // handle class event
     if (typeof popup !== 'undefined') {
-      adjustPOPUP(closest.getAttribute('sid'));
+      popup.style.display = 'none';
+      adjustPOPUP(closest.dataset.sid);
       popup.style.display = "";
     } else {
-      win = document.getElementsByClassName('chartwrap')[0];
+      // win = document.getElementsByClassName('chartwrap')[0];
       popup = document.createElement('div');
       popup.classList = 'popup';
-      adjustPOPUP(closest.getAttribute('sid'));
-      win.appendChild(popup);
+      popup.id = 'datatooltip';
+      adjustPOPUP(closest.dataset.sid);
+      document.body.appendChild(popup);
     }
 
-    // console.log(getElementIndex(closest));
-    // console.log(getElementIndex(closest));
-    // console.log(closest.id);
-    // console.log(closest.id.slice(2));
-
-    // function getElementIndex(node) {
-    //     var index = 0;
-    //     while ( (node = node.previousElementSibling) ) {
-    //         index++;
-    //     }
-    //     return index;
-    // }
-  }
 
   function adjustPOPUP(id) {
-    let startTime = retrieveStartTime(id);
-    console.log(id);
-    popup.innerHTML = "<span>Participant: "+ participants[participants_highest_ix.findIndex(x=>x>=id)] +"</span><span>AOI: "+AOIs[ar.AOIid[id]]+"</span><span>Start: "+startTime+" ms</span><span>End: "+ar.endTime[id]+" ms</span><span>Duration: "+(ar.endTime[id] - startTime)+" ms</span>";
-    popup.style.top = closest.getBoundingClientRect().bottom - win.getBoundingClientRect().top + 4 + "px";
-    popup.style.left = closest.getBoundingClientRect().left - win.getBoundingClientRect().left + "px";
+    const rectBoundingBox = closest.getBoundingClientRect();
+    const startTime = getStartTime(id);
+    popup.innerHTML = "<span>Participant: "+ participants.names[participants.highestAOISegmentId.findIndex(x=>x>=id)] +"</span><span>AOI: "+aoiCategories.names[aoiSegments.AOIid[id]]+"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+aoiSegments.endTime[id].toFixed(1) +" ms</span><span>Duration: "+(aoiSegments.endTime[id] - startTime).toFixed(1) +" ms</span>";
+    popup.style.top = window.scrollY + rectBoundingBox.bottom + "px";
+    let xPosition = event.pageX;
+    if (event.pageX + 155 > window.scrollX + document.body.clientWidth) {
+      console.log("event: " + event.pageX + " clientWidth: " + document.body.clientWidth);
+      xPosition = window.scrollX + document.body.clientWidth - 155;
+    }
+    popup.style.left = xPosition + "px";
+    // popup.style.top = closest.getBoundingClientRect().bottom - win.getBoundingClientRect().top + 4 + "px";
+    // popup.style.left = closest.getBoundingClientRect().left - win.getBoundingClientRect().left + "px";
   }
 };
 
-function getPrettyBreak10(n) {
-  let res = n/10;
+function getPrettyBreakStep(numberToBreak, numberOfSteps = 10) {
+  let res = numberToBreak/numberOfSteps;
   let num_of_digits = Math.log(res) * Math.LOG10E + 1 | 0;
   res = (res/(10**(num_of_digits))).toFixed(1);
   return res*(10**(num_of_digits))
 }
 
-function getElementIndex(node) {
-    var index = 0;
-    while ( (node = node.previousElementSibling) ) {
-        index++;
-    }
-    return index;
-}
+// function getElementIndex(node) {
+//     var index = 0;
+//     while ( (node = node.previousElementSibling) ) {
+//         index++;
+//     }
+//     return index;
+// }
 
 //other event handlers
 function handleRelative() {
-  let elem = document.getElementsByClassName('torelative')[0];
+  const timelineSwitch = document.getElementsByClassName('torelative')[0];
   let barwrap = document.getElementsByClassName('barwrap');
-  if (!elem.classList.contains('activebtn3')) {
+  if (!timelineSwitch.classList.contains('activebtn3')) {
     for (var i = 0; i < barwrap.length; i++) {
       barwrap[i].setAttribute('width', '100%');
     }
-    elem.classList.add('activebtn3');
+    timelineSwitch.classList.add('activebtn3');
   } else {
     for (var i = 0; i < barwrap.length; i++) {
-      let bwwidth = (ar_participants_dur[i]/ar_participants_maxdur)*100 + '%';
+      let bwwidth = (participants.sessionDuration[i]/participants.maxDuration)*100 + '%';
       barwrap[i].setAttribute('width', bwwidth);
     }
-    elem.classList.remove('activebtn3');
+    timelineSwitch.classList.remove('activebtn3');
   }
 }
 
@@ -368,13 +312,43 @@ function printNewAniOutput(htmltag, csstag, sectionindex, html) {
 
 elmFileUpload.addEventListener('change',onFileUploadChange,false);
 
-function retrieveStartTime(index) {
-  console.log(index);
-  if (participants_highest_ix.includes(index-1) || index-1 < 0) {
-    return 0
+function getStartTime(index) {
+  if (participants.highestAOISegmentId.includes(index-1) || index-1 < 0) { return 0 }
+  return aoiSegments.endTime[index-1]
+}
+
+
+function zoomScarf(isZoomIn) {
+  const currentButton = event.target.id;
+  const zoomOutButton = document.getElementById('zoomOutScarf');
+  const chartAnimation = document.getElementById('chareaAni');
+  const fromChartWidth = chartAnimation.getAttribute('to').slice(0, -1);
+  let toChartWidth = fromChartWidth;
+  if (currentButton === "zoomInScarf") {
+    toChartWidth *= 2;
+  } else {
+    toChartWidth /= 2;
   }
-  return ar.endTime[index-1]
+  if (toChartWidth < 100) {
+    zoomOutButton.classList.add('deactivated');
+    return
+  } else {
+    zoomOutButton.classList.remove('deactivated');
+  }
+  chartAnimation.setAttribute('from',fromChartWidth+'%');
+  chartAnimation.setAttribute('to',toChartWidth+'%');
+  chartAnimation.beginElement();
 }
 
 // třídění na později
 // indices.sort(function (a, b) { return array1[a] < array1[b] ? -1 : array1[a] > array1[b] ? 1 : 0; });
+
+// //možná odkaz i do paintabsolutebars - příprava na sorting
+// for (var i = 0; i < sortedParticipId.length; i++) {
+//   sortedParticipId[i]
+//   //poskládat HTML kód barů
+// }
+
+//paint labels - to samé
+
+//paint tabulka asi také
