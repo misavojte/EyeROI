@@ -124,7 +124,7 @@ function process_SMI_Raw_Static(spl) {
 
 function printSequenceChart() {
   let inner = '<h3 class="cardtitle">Sequence chart (Scarf plot)</h3>';
-  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div><div id="zoomInScarf" class="btn4">+</div><div id="zoomOutScarf" class="btn4 deactivated">-</div><div onclick="showDownloadScarfPlotScreen()" class="btn4">D</div></div>';
+  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div><div id="zoomInScarf" class="btn4">+</div><div id="zoomOutScarf" class="btn4 deactivated">-</div></div>';
   inner += '<div class="chartwrap">';
   inner += paintAbsoluteBars();
   inner += '</div>';
@@ -153,16 +153,16 @@ function paintAbsoluteBars() {
   let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='" + (xaxispos + 30) + "'>";
   str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>"
   //add style to SVG string
-  // str += '<style>rect{height:100%}.gr{stroke:rgb(0 0 0 / 35%);stroke-width:1}.gr2{stroke:rgb(0 0 0 / 15%);stroke-width:1}.labs{font-size:0.8rem}';
-  // for (var i = 0; i < aoiCategories.colors.length; i++) {
-  //   str += '.a' + i + '{fill:' + aoiCategories.colors[i] + '}';
-  // }
-  // str += '</style>';
+  str += '<style>rect{height:100%}.gr{stroke:rgb(0 0 0 / 35%);stroke-width:1}.gr2{stroke:rgb(0 0 0 / 15%);stroke-width:1}.labs{font-size:0.8rem}';
+  for (var i = 0; i < aoiCategories.colors.length; i++) {
+    str += '.a' + i + '{fill:' + aoiCategories.colors[i] + '}';
+  }
+  str += '</style>';
   //add main X,Y axes and start constructing main chart area
   // str += "<svg id='charea' x='" + gapForYLabs + "' width='" + (finalSVGwidth-gapForYLabs) + "'>";
 
-  str += "<g><line class='gr y-gr' stroke='#cbcbcb' stroke-width='1'  x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>";
-  str += "<line class='gr x-gr' stroke='#cbcbcb' stroke-width='1' x1='0' x2='0' y1='" + xaxispos + "' y2='0'></line></g>";
+  str += "<g><line class='gr y-gr' id='yGr' x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>";
+  str += "<line class='gr x-gr' id='xGr' x1='0' x2='0' y1='" + xaxispos + "' y2='0'></line></g>";
 
   //add X axes labels and support Y axes
   //Y axes will be rendered under the sequence bars
@@ -177,7 +177,7 @@ function paintAbsoluteBars() {
     tanchor = "text-anchor='middle'";
   }
 
-  str = str + "<g class='x-gr gr2' stroke='#cbcbcb' stroke-width='1'>" + str_vedlej_gridX + "</g><g font-size='0.85rem' fill='#4a4a4a' class='labs' id='xLabs'>" + str_labels_gridX + "</g>";
+  str = str + "<g class='x-gr gr2'>" + str_vedlej_gridX + "</g><g class='labs' id='xLabs'>" + str_labels_gridX + "</g>";
 
   for (var k = 0; k < participants.names.length; k++) {
     if (k === 0) {
@@ -187,12 +187,12 @@ function paintAbsoluteBars() {
     }
     segEnd = participants.highestAOISegmentId[k];
     ypos += 30;
-    str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "' width='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%'>";
+    str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "'height='20' width='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%'>";
     str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
 
     for (var i = segStart; i < segEnd+1; i++) {
         let recStart = getStartTime(i); //start pos of svg rectangle
-        str += "<rect height='20' data-sid='" + i + "' fill='" +  aoiCategories.colors[aoiSegments.AOIid[i]] + "' class='a" +  aoiSegments.AOIid[i] + "' x='" + (recStart / participants.sessionDuration[k]) * 100 + "%' width='" + ((aoiSegments.endTime[i] - recStart) / participants.sessionDuration[k]) * 100 + "%'></rect>";
+        str += "<rect data-sid='" + i + "' class='a" +  aoiSegments.AOIid[i] + "' x='" + (recStart / participants.sessionDuration[k]) * 100 + "%' width='" + ((aoiSegments.endTime[i] - recStart) / participants.sessionDuration[k]) * 100 + "%'></rect>";
     }
     str += "</svg>";
     //create inner HTML string for Y main labels component
@@ -203,7 +203,7 @@ function paintAbsoluteBars() {
   str += "</svg></div>";
   let labsstr = "<svg xmlns='http://www.w3.org/2000/svg' id='chylabs' width='100%' height='" + (xaxispos + 30) + "'>";
   //add y main labels component
-  labsstr += "<g class='labs' font-size='0.85rem' fill='#4a4a4a'>" + yLabInnerStr + "</g>";
+  labsstr += "<g class='labs' x='0'>" + yLabInnerStr + "</g>";
   //end tag
   labsstr += "</svg>";
   str = labsstr + str;
@@ -360,30 +360,11 @@ function zoomScarf() {
   chartAnimation.beginElement();
 }
 
-function showDownloadScarfPlotScreen() {
-  let downloadScreen = document.getElementById('SPdownloadScreen');
-  if (!downloadScreen) {
-    let downloadScreen = document.createElement('div');
-    downloadScreen.id = 'SPdownloadScreen';
-    downloadScreen.classList = 'exterModal';
-    downloadScreen.innerHTML = '<div class="interModal"><div class="modalHeader">Download Scarf plot<div onclick="closeDownloadScarfPlotScreen()" class="modalClose">X</div></div><div>Width of the plot: <input id="SPwidthInput" type="number" value="800"> px.</div><p style="font-size:.85rem">It is advised to download the plot as a svg image to ensure its best sharpness.</p><div class="btnholder"><button onclick="getDownloadedScarfPlot()" class="btn">SVG</button><button onclick="getDownloadedScarfPlot()" class="btn2">PNG</button><button class="btn2" onclick="getDownloadedScarfPlot()">JPEG</button><button class="btn2" onclick="getDownloadedScarfPlot()">WEBP</button></div></div>';
-    document.body.appendChild(downloadScreen);
-  } else {
-    downloadScreen.style.display="";
-  }
-}
-
-function closeDownloadScarfPlotScreen() {
-  document.getElementById('SPdownloadScreen').style.display="none";
-}
-
-function getDownloadedScarfPlot() {
+function getDownloadedScarfPlot(isRelative = false, width = 800, type = 'png') {
   const gapForYLabs = 30;
   const originalChartArea = document.getElementById('charea')
   const originalChartHeight = originalChartArea.getBoundingClientRect().height;
   const height = originalChartHeight; //do budoucna
-  const width = document.getElementById('SPwidthInput').value;
-  const type = event.target.innerText.toLowerCase();
 
   let clonedChartArea = originalChartArea.cloneNode(true);
   //remove animate tags

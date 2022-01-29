@@ -87,7 +87,8 @@ input[type="file"] {
     color: var(--c-l1);
     font-weight: bold;
     background: #cd1404;
-    border-radius: 5px
+    border-radius: 5px;
+    border: none
 }
 
 .btn2 {
@@ -179,22 +180,6 @@ input[type="file"] {
   background: var(--c-red2)
 }
 
-.gr {
-  stroke:rgb(0 0 0 / 35%);
-  stroke-width:1
-}
-
-.gr2 {
-  stroke:rgb(0 0 0 / 15%);
-  stroke-width:1
-}
-
-.labs {
-  font-size: 0.8rem;
-  fill: var(--c-d3);
-}
-
-
 .popup {
   position: absolute;
   width: 155px;
@@ -254,6 +239,56 @@ input[type="file"] {
 }
 #charea rect {
   transition: .3s all ease-in-out
+}
+
+.exterModal {
+  position: fixed;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c9c9c9db
+}
+
+.interModal {
+  width: 100%;
+  max-width: 400px;
+  background: var(--c-l1);
+  display: flex;
+  padding: 12px;
+  gap: 7px;
+  justify-content: center;
+  flex-direction: column;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+  border-radius: 7px;
+  text-align: center
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 500;
+  margin-bottom: 1rem
+}
+
+.modalClose {
+  cursor: pointer;
+}
+
+.modalClose:hover {
+  opacity: .85;
+}
+
+#SPwidthInput {
+  width: 75px;
+  border: none;
+  text-align: center;
+  background: none;
+  border-bottom: 1px solid var(--c-d3);
+  font-size: 1.1rem;
+  color: var(--c-d3)
 }
 
 @keyframes in-an {
