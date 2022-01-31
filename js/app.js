@@ -123,8 +123,11 @@ function process_SMI_Raw_Static(spl) {
 }
 
 function printSequenceChart() {
+  const downloadIcon = '<svg onclick="showDownloadScarfPlotScreen()" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="btn4" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>';
+  const zoomInIcon = '<svg id="zoomInScarf" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="btn4" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5z"/></svg>';
+  const zoomOutIcon = '<svg id="zoomOutScarf" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="btn4 deactivated" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/></svg>';
   let inner = '<h3 class="cardtitle">Sequence chart (Scarf plot)</h3>';
-  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div><div id="zoomInScarf" class="btn4">+</div><div id="zoomOutScarf" class="btn4 deactivated">-</div><div onclick="showDownloadScarfPlotScreen()" class="btn4">D</div></div>';
+  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div>'+zoomInIcon+zoomOutIcon+downloadIcon+'</div>';
   inner += '<div class="chartwrap">';
   inner += paintAbsoluteBars();
   inner += '</div>';
@@ -150,7 +153,7 @@ function paintAbsoluteBars() {
   //start constructing SVG string
   // let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" role="img">';
 
-  let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='" + (xaxispos + 30) + "'>";
+  let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='" + (xaxispos + 40) + "'>";
   str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>"
   //add style to SVG string
   // str += '<style>rect{height:100%}.gr{stroke:rgb(0 0 0 / 35%);stroke-width:1}.gr2{stroke:rgb(0 0 0 / 15%);stroke-width:1}.labs{font-size:0.8rem}';
@@ -162,7 +165,7 @@ function paintAbsoluteBars() {
   // str += "<svg id='charea' x='" + gapForYLabs + "' width='" + (finalSVGwidth-gapForYLabs) + "'>";
 
   str += "<g><line class='gr y-gr' stroke='#cbcbcb' stroke-width='1'  x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>";
-  str += "<line class='gr x-gr' stroke='#cbcbcb' stroke-width='1' x1='0' x2='0' y1='" + xaxispos + "' y2='0'></line></g>";
+  str += "<line class='gr x-gr' stroke='#cbcbcb' stroke-width='1' x1='1' x2='1' y1='" + xaxispos + "' y2='0'></line></g>";
 
   //add X axes labels and support Y axes
   //Y axes will be rendered under the sequence bars
@@ -177,7 +180,7 @@ function paintAbsoluteBars() {
     tanchor = "text-anchor='middle'";
   }
 
-  str = str + "<g class='x-gr gr2' stroke='#cbcbcb' stroke-width='1'>" + str_vedlej_gridX + "</g><g font-size='0.85rem' fill='#4a4a4a' class='labs' id='xLabs'>" + str_labels_gridX + "</g>";
+  str = str + "<g class='x-gr gr2' stroke='#cbcbcb' stroke-width='1'>" + str_vedlej_gridX + "</g><g font-size='0.85rem' fill='#4a4a4a' class='labs' id='xLabs'>" + str_labels_gridX + "<text x='50%' text-anchor='middle' y='" + (Number(xaxispos) + 30) + "'>Elapsed time [ms]</text></g>";
 
   for (var k = 0; k < participants.names.length; k++) {
     if (k === 0) {
@@ -207,6 +210,13 @@ function paintAbsoluteBars() {
   //end tag
   labsstr += "</svg>";
   str = labsstr + str;
+
+  //add responsive HTML legend
+  str += "<div id='chlegend'>"
+  for (var i = 0; i < aoiCategories.names.length; i++) {
+    str += "<div class='legendItem a" + i + "'><div class='legendRect' style='background:" + aoiCategories.colors[i] + "'></div><div>" + aoiCategories.names[i] + "</div></div>";
+  }
+  str += "</div>";
 
   return str;
 }
@@ -276,6 +286,7 @@ function handleRelative() {
     for (var i = 0; i < barwrap.length; i++) {
       const from = ((participants.sessionDuration[i]/participants.maxDuration)*100)+"%";
       const to = 100+"%";
+      barwrap[i].setAttribute('width', to); //because of the export function
       let animateTag = barwrap[i].getElementsByTagName('animate')[0];
 
         animateTag.setAttribute('from', from);
@@ -289,6 +300,7 @@ function handleRelative() {
     for (var i = 0; i < barwrap.length; i++) {
       const to = ((participants.sessionDuration[i]/participants.maxDuration)*100)+"%";
       const from = 100+"%";
+      barwrap[i].setAttribute('width', to); //because of the export function
       let animateTag = barwrap[i].getElementsByTagName('animate')[0];
 
         animateTag.setAttribute('from', from);
@@ -297,16 +309,6 @@ function handleRelative() {
     }
     timelineSwitch.classList.remove('activebtn3');
   }
-  // function addAnimateTag(from, to) {
-  //   animateTag = document.createElement("animate");
-  //   animateTag.setAttribute('attributeName', 'width');
-  //   animateTag.setAttribute('dur', '0.3s');
-  //   animateTag.setAttribute('fill', 'freeze');
-  //   animateTag.setAttribute('from', from);
-  //   animateTag.setAttribute('to', to);
-  //   barwrap[i].appendChild(animateTag);
-  //   animateTag.beginElement();
-  // }
 }
 
 
@@ -339,7 +341,8 @@ function getStartTime(index) {
 
 
 function zoomScarf() {
-  const currentButton = event.target.id;
+  const currentButton = event.currentTarget.id;
+  console.log(currentButton);
   const zoomOutButton = document.getElementById('zoomOutScarf');
   const chartAnimation = document.getElementById('chareaAni');
   const fromChartWidth = chartAnimation.getAttribute('to').slice(0, -1);
@@ -366,7 +369,7 @@ function showDownloadScarfPlotScreen() {
     let downloadScreen = document.createElement('div');
     downloadScreen.id = 'SPdownloadScreen';
     downloadScreen.classList = 'exterModal';
-    downloadScreen.innerHTML = '<div class="interModal"><div class="modalHeader">Download Scarf plot<div onclick="closeDownloadScarfPlotScreen()" class="modalClose">X</div></div><div>Width of the plot: <input id="SPwidthInput" type="number" value="800"> px.</div><p style="font-size:.85rem">It is advised to download the plot as a svg image to ensure its best sharpness.</p><div class="btnholder"><button onclick="getDownloadedScarfPlot()" class="btn">SVG</button><button onclick="getDownloadedScarfPlot()" class="btn2">PNG</button><button class="btn2" onclick="getDownloadedScarfPlot()">JPEG</button><button class="btn2" onclick="getDownloadedScarfPlot()">WEBP</button></div></div>';
+    downloadScreen.innerHTML = '<div class="interModal"><div class="modalHeader">Download Scarf plot<div onclick="closeDownloadScarfPlotScreen()" class="modalClose">X</div></div><div>Width of the plot: <input id="SPwidthInput" type="number" value="800"> px.</div><p style="font-size:.85rem;max-width:300px">It is advised to download the plot as a svg image to ensure its best sharpness.</p><div class="btnholder"><button onclick="getDownloadedScarfPlot()" class="btn">SVG</button><button onclick="getDownloadedScarfPlot()" class="btn2">PNG</button><button class="btn2" onclick="getDownloadedScarfPlot()">JPEG</button><button class="btn2" onclick="getDownloadedScarfPlot()">WEBP</button></div></div>';
     document.body.appendChild(downloadScreen);
   } else {
     downloadScreen.style.display="";
@@ -381,7 +384,7 @@ function getDownloadedScarfPlot() {
   const gapForYLabs = 30;
   const originalChartArea = document.getElementById('charea')
   const originalChartHeight = originalChartArea.getBoundingClientRect().height;
-  const height = originalChartHeight; //do budoucna
+  let height = originalChartHeight;
   const width = document.getElementById('SPwidthInput').value;
   const type = event.target.innerText.toLowerCase();
 
@@ -393,10 +396,12 @@ function getDownloadedScarfPlot() {
   }
   let clonedChartYLabels = document.getElementById('chylabs').cloneNode(true);
 
+  const svgLegend = getSVGLegend(); //function adjusting var height as well
+
   let wholeChartSvg = document.createElement('svg');
   wholeChartSvg.setAttribute('width', width);
-  wholeChartSvg.setAttribute('height', originalChartHeight);
-  wholeChartSvg.setAttribute('viewBox', '0 0 ' + width + ' ' + originalChartHeight); //for correct scaling
+  wholeChartSvg.setAttribute('height', height);
+  wholeChartSvg.setAttribute('viewBox', '0 0 ' + width + ' ' + height); //for correct scaling
   wholeChartSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   clonedChartArea.setAttribute('width', width-gapForYLabs);
   clonedChartArea.setAttribute('x', gapForYLabs);
@@ -404,6 +409,9 @@ function getDownloadedScarfPlot() {
   clonedChartYLabels.removeAttribute('xmlns');
   wholeChartSvg.appendChild(clonedChartArea);
   wholeChartSvg.appendChild(clonedChartYLabels);
+  wholeChartSvg.appendChild(svgLegend);
+
+  //create SVG legend
 
   //prepare canvas
   let canvas = document.createElement('canvas');
@@ -418,7 +426,7 @@ function getDownloadedScarfPlot() {
 
   chartAreaImg.onload = function() {
     if (type === 'svg') {
-      triggerDownload(chartAreaImg.src, 'test.' + type);
+      triggerDownload(chartAreaImg.src, 'scarfPlot.' + type);
       return
     }
     ctx.imageSmoothingEnabled = false;
@@ -426,6 +434,28 @@ function getDownloadedScarfPlot() {
     finalImage = canvas.toDataURL('image/' + type);
     triggerDownload(finalImage, 'test.' + type);
   };
+
+  function getSVGLegend() {
+    let htmlLegend = document.getElementById('chlegend');
+
+    htmlLegend.style.width = width+"px";
+
+    const htmlLegendItems = htmlLegend.childNodes;
+    const htmlLegendBounding = htmlLegend.getBoundingClientRect();
+    let svgInnerString = "";
+    for (var i = 0; i < htmlLegendItems.length; i++) {
+      const bounding = htmlLegendItems[i].getBoundingClientRect();
+
+      svgInnerString += "<rect x='" + (bounding.x-htmlLegendBounding.x) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)) + "' fill='" + aoiCategories.colors[i] + "' width='12' height='12'></rect>";
+      svgInnerString += "<text x='" + ((bounding.x+19)-htmlLegendBounding.x) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)+12) + "'>" + aoiCategories.names[i] + "</text>";
+    }
+    let svgGroup = document.createElement('g');
+    svgGroup.innerHTML = svgInnerString;
+    svgGroup.setAttribute('font-size', '0.85rem');
+    height += htmlLegendBounding.height; //changing variable outside function!
+    htmlLegend.style.width = "";
+    return svgGroup
+  }
 
   function getBlobURL(clonedSvg) {
     let blob = new Blob([clonedSvg.outerHTML],{type:'image/svg+xml;charset=utf-8'});

@@ -128,6 +128,7 @@ input[type="file"] {
 .btn3-absolute,.btn3-relative, .btn4 {
   padding: 5px 10px;
   transition: all .3s ease-in-out;
+  height: 20px
 }
 
 .activebtn3 > .btn3-relative {
@@ -157,6 +158,7 @@ input[type="file"] {
   padding: 8px;
   margin: auto;
   border-bottom: 1px solid rgb(0 0 0 / 15%);
+  text-align: center
 }
 
 .anim {
@@ -241,6 +243,30 @@ input[type="file"] {
   transition: .3s all ease-in-out
 }
 
+#chlegend {
+  font-size: .85rem;
+  display: flex;
+    padding: 7px;
+    column-gap: 25px;
+    row-gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+    grid-column: span 2;
+    box-sizing: border-box;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 7px
+}
+
+.legendRect {
+  width: 12px;
+  height: 12px;
+}
+
 .exterModal {
   position: fixed;
   top: 0;
@@ -249,7 +275,8 @@ input[type="file"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #c9c9c9db
+  background: #c9c9c9db;
+  animation: in-an .3s ease-in-out
 }
 
 .interModal {
@@ -263,14 +290,16 @@ input[type="file"] {
   flex-direction: column;
   box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
   border-radius: 7px;
-  text-align: center
+  text-align: center;
+  align-items: center;
 }
 
 .modalHeader {
   display: flex;
   justify-content: space-between;
   font-weight: 500;
-  margin-bottom: 1rem
+  margin-bottom: 1rem;
+  width: 100%
 }
 
 .modalClose {
