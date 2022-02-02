@@ -1,22 +1,27 @@
-var elmFileUpload = document.getElementById('file-upload');
-
+document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
 
 var aoiSegments = {
+  startTime: [],
   endTime: [],
   AOIid: []
 };
 
 var aoiCategories = {
   names: [],
-  colors: ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928"] //predefined
+  colors: ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
 };
 
 var participants = {
   sessionDuration: [],
-  maxDuration: null,
+  maxDuration: [],
   names: [],
   highestAOISegmentId: []
 };
+
+var stimulus = {
+  currentlySelected: 0,
+  names: []
+}
 
 
 function onFileUploadChange(e) {
@@ -48,14 +53,12 @@ function showDataType(a) {
 }
 
 var popup;
-var win;
-
 
   //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
 
 function preprocess_TXT(fr) {
   let colDelimiters = ['\t',',',';'];
-  let firstRows = fr.split('\r\n', 3);
+
   //find column delimiter
   //let colDelimiter = colDelimiters.find(item => firstRows[0].split(item).length === firstRows[2].split(item).length && firstRows[0].split(item).length > 1);
 
@@ -78,6 +81,8 @@ function preprocess_TXT(fr) {
 function process_SMI_Raw_Static(spl) {
   let isNewSegment = true;
   let baseTime = 0;
+  let lastEndTime = 0;
+  let lastStimulus = 0;
   let segmentAOIix = -1;
   let iterateTo = spl.length-1 //skip last one (different processing on last row)
   //from 1 to skip header
@@ -85,7 +90,10 @@ function process_SMI_Raw_Static(spl) {
     if (isNewSegment === true) {
       firstRow(i);
     }
-    if (spl[i][2] !== spl[i+1][2]) {
+    if (spl[i][1] !== lastStimulus) {
+      firstStimulusRow(i);
+    }
+    if (spl[i][2] !== spl[i+1][2] || spl[i][1] !== spl[i+1][1]) {
       lastParticipantRow(i);
     }
     else if (spl[i][5] !== spl[i+1][5]) {
@@ -93,32 +101,62 @@ function process_SMI_Raw_Static(spl) {
     }
   }
   //last row of array
-  if (isNewSegment) { firstRow(spl.length-1) }
-  lastParticipantRow(spl.length-1);
+  if (isNewSegment) { firstRow(iterateTo) }
+  lastParticipantRow(iterateTo);
 
   function firstRow(x) {
     baseTime = spl[x][0];
+    lastEndTime = 0;
     isNewSegment = false;
   }
+
+  function firstStimulusRow(x) {
+    const indexOfCurrentStimulus = stimulus.names.indexOf(spl[i][1]);
+    if (indexOfCurrentStimulus === -1) {
+      //this stimulus doesn't exist (index is -1)
+      participants.sessionDuration.push([]);
+      participants.highestAOISegmentId.push([]);
+      aoiCategories.names.push([]);
+      aoiSegments.startTime.push([]);
+      aoiSegments.endTime.push([]);
+      aoiSegments.AOIid.push([]);
+
+      stimulus.names.push(spl[i][1]);
+      stimulus.currentlySelected = stimulus.names.length - 1;
+
+      lastStimulus = spl[i][1];
+      segmentAOIix = -1;
+    } else {
+      lastStimulus = spl[i][1];
+      segmentAOIix = aoiSegments.AOIid[indexOfCurrentStimulus].length - 1;
+      stimulus.currentlySelected = indexOfCurrentStimulus;
+    }
+  }
+
   function lastParticipantRow(x) {
     lastAOIRow(x);
     isNewSegment = true;
-    participants.highestAOISegmentId.push(segmentAOIix);
+    participants.highestAOISegmentId[stimulus.currentlySelected].push(segmentAOIix);
     if (!participants.names.includes(spl[x][2])) {
       participants.names.push(spl[x][2]);
     }
-    participants.sessionDuration.push(spl[x][0]-baseTime);
+    participants.sessionDuration[stimulus.currentlySelected].push(spl[x][0]-baseTime);
   }
   function lastAOIRow(x) {
     segmentAOIix++;
-    if (!aoiCategories.names.includes(spl[x][5])) {
-      aoiCategories.names.push(spl[x][5]);
+    const newEndTime = spl[x][0]-baseTime
+    if (!aoiCategories.names[stimulus.currentlySelected].includes(spl[x][5])) {
+      aoiCategories.names[stimulus.currentlySelected].push(spl[x][5]);
     }
-    aoiSegments.AOIid.push(aoiCategories.names.indexOf(spl[x][5]));
-    aoiSegments.endTime.push(spl[x][0]-baseTime);
+    aoiSegments.AOIid[stimulus.currentlySelected].push(aoiCategories.names[stimulus.currentlySelected].indexOf(spl[x][5]));
+    aoiSegments.endTime[stimulus.currentlySelected].push(newEndTime);
+    aoiSegments.startTime[stimulus.currentlySelected].push(lastEndTime);
+    lastEndTime = newEndTime;
   }
   //get maximu length of session - used for SVG chart
-  participants.maxDuration = Math.max(...participants.sessionDuration);
+  for (var i = 0; i < stimulus.names.length; i++) {
+    participants.maxDuration[i] = Math.max(...participants.sessionDuration[i]);
+  }
   printSequenceChart();
 }
 
@@ -126,8 +164,14 @@ function printSequenceChart() {
   const downloadIcon = '<svg onclick="showDownloadScarfPlotScreen()" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="btn4" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>';
   const zoomInIcon = '<svg id="zoomInScarf" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="btn4" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5z"/></svg>';
   const zoomOutIcon = '<svg id="zoomOutScarf" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="btn4 deactivated" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/></svg>';
+  const select = '<select onchange="handleStimulusChange(this)" id="SPstimulus">'+stimulus.names.map((item, index)=>{
+    let selected = '';
+    if (stimulus.currentlySelected === index) {
+      selected = 'selected'
+    }
+    return '<option value="'+index+'" '+selected+'>'+item+'</option>';}).join('')+'</select>';
   let inner = '<h3 class="cardtitle">Sequence chart (Scarf plot)</h3>';
-  inner += '<div class="btnholder"><div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div>'+zoomInIcon+zoomOutIcon+downloadIcon+'</div>';
+  inner += '<div class="btnholder">'+select+'<div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div>'+zoomInIcon+zoomOutIcon+downloadIcon+'</div>';
   inner += '<div class="chartwrap">';
   inner += paintAbsoluteBars();
   inner += '</div>';
@@ -148,7 +192,8 @@ function paintAbsoluteBars() {
   let str_labels_gridX = "";
   let yLabInnerStr = "";
   let gapForYLabs = 30;
-  let finalSVGwidth = 800;
+
+  const maxDuration = participants.maxDuration[stimulus.currentlySelected];
 
   //start constructing SVG string
   // let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" role="img">';
@@ -170,13 +215,13 @@ function paintAbsoluteBars() {
   //add X axes labels and support Y axes
   //Y axes will be rendered under the sequence bars
   let tanchor = "text-anchor='start'";
-  const breakStep = getPrettyBreakStep(participants.maxDuration);
-  for (var j = 0; j < participants.maxDuration; j = j+breakStep) {
-    if (j+breakStep > participants.maxDuration) {
+  const breakStep = getPrettyBreakStep(maxDuration);
+  for (var j = 0; j < maxDuration; j = j+breakStep) {
+    if (j+breakStep > maxDuration) {
       tanchor = "text-anchor='end'";
     }
-    str_vedlej_gridX = str_vedlej_gridX + "<line x1='" + j/participants.maxDuration*100 +"%' x2='" + j/participants.maxDuration*100 +"%' y1='0' y2='" + xaxispos + "'></line>";
-    str_labels_gridX = str_labels_gridX + "<text x='" + j/participants.maxDuration*100 + "%' " + tanchor + " y='" + (Number(xaxispos) + 14) + "'>" + j + "</text>"
+    str_vedlej_gridX = str_vedlej_gridX + "<line x1='" + j/maxDuration*100 +"%' x2='" + j/maxDuration*100 +"%' y1='0' y2='" + xaxispos + "'></line>";
+    str_labels_gridX = str_labels_gridX + "<text x='" + j/maxDuration*100 + "%' " + tanchor + " y='" + (Number(xaxispos) + 14) + "'>" + j + "</text>"
     tanchor = "text-anchor='middle'";
   }
 
@@ -186,16 +231,16 @@ function paintAbsoluteBars() {
     if (k === 0) {
       segStart = 0;
     } else {
-      segStart = participants.highestAOISegmentId[k-1] + 1;
+      segStart = participants.highestAOISegmentId[stimulus.currentlySelected][k-1] + 1;
     }
-    segEnd = participants.highestAOISegmentId[k];
+    segEnd = participants.highestAOISegmentId[stimulus.currentlySelected][k];
     ypos += 30;
-    str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "' width='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%'>";
-    str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[k]/participants.maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
+    str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "' width='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%'>";
+    str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
 
     for (var i = segStart; i < segEnd+1; i++) {
-        let recStart = getStartTime(i); //start pos of svg rectangle
-        str += "<rect height='20' data-sid='" + i + "' fill='" +  aoiCategories.colors[aoiSegments.AOIid[i]] + "' class='a" +  aoiSegments.AOIid[i] + "' x='" + (recStart / participants.sessionDuration[k]) * 100 + "%' width='" + ((aoiSegments.endTime[i] - recStart) / participants.sessionDuration[k]) * 100 + "%'></rect>";
+        let recStart = aoiSegments.startTime[stimulus.currentlySelected][i]; //start pos of svg rectangle
+        str += "<rect height='20' data-sid='" + i + "' fill='" +  aoiCategories.colors[aoiSegments.AOIid[stimulus.currentlySelected][i]] + "' class='a" +  aoiSegments.AOIid[stimulus.currentlySelected][i] + "' x='" + (recStart / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%' width='" + ((aoiSegments.endTime[stimulus.currentlySelected][i] - recStart) / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%'></rect>";
     }
     str += "</svg>";
     //create inner HTML string for Y main labels component
@@ -213,8 +258,8 @@ function paintAbsoluteBars() {
 
   //add responsive HTML legend
   str += "<div id='chlegend'>"
-  for (var i = 0; i < aoiCategories.names.length; i++) {
-    str += "<div class='legendItem a" + i + "'><div class='legendRect' style='background:" + aoiCategories.colors[i] + "'></div><div>" + aoiCategories.names[i] + "</div></div>";
+  for (var i = 0; i < aoiCategories.names[stimulus.currentlySelected].length; i++) {
+    str += "<div class='legendItem a" + i + "'><div class='legendRect' style='background:" + aoiCategories.colors[i] + "'></div><div>" + aoiCategories.names[stimulus.currentlySelected][i] + "</div></div>";
   }
   str += "</div>";
 
@@ -251,8 +296,8 @@ function handler(event) {
 
   function adjustPOPUP(id) {
     const rectBoundingBox = closest.getBoundingClientRect();
-    const startTime = getStartTime(id);
-    popup.innerHTML = "<span>Participant: "+ participants.names[participants.highestAOISegmentId.findIndex(x=>x>=id)] +"</span><span>AOI: "+aoiCategories.names[aoiSegments.AOIid[id]]+"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+aoiSegments.endTime[id].toFixed(1) +" ms</span><span>Duration: "+(aoiSegments.endTime[id] - startTime).toFixed(1) +" ms</span>";
+    const startTime = aoiSegments.startTime[stimulus.currentlySelected][id];
+    popup.innerHTML = "<span>Participant: "+ participants.names[participants.highestAOISegmentId[stimulus.currentlySelected].findIndex(x=>x>=id)] +"</span><span>AOI: "+aoiCategories.names[stimulus.currentlySelected][aoiSegments.AOIid[stimulus.currentlySelected][id]]+"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+aoiSegments.endTime[stimulus.currentlySelected][id].toFixed(1) +" ms</span><span>Duration: "+(aoiSegments.endTime[stimulus.currentlySelected][id] - startTime).toFixed(1) +" ms</span>";
     popup.style.top = window.scrollY + rectBoundingBox.bottom + "px";
     let xPosition = event.pageX;
     if (event.pageX + 155 > window.scrollX + document.body.clientWidth) {
@@ -284,7 +329,7 @@ function handleRelative() {
 
   if (!timelineSwitch.classList.contains('activebtn3')) {
     for (var i = 0; i < barwrap.length; i++) {
-      const from = ((participants.sessionDuration[i]/participants.maxDuration)*100)+"%";
+      const from = ((participants.sessionDuration[stimulus.currentlySelected][i]/participants.maxDuration[stimulus.currentlySelected])*100)+"%";
       const to = 100+"%";
       barwrap[i].setAttribute('width', to); //because of the export function
       let animateTag = barwrap[i].getElementsByTagName('animate')[0];
@@ -298,7 +343,7 @@ function handleRelative() {
     timelineSwitch.classList.add('activebtn3');
   } else {
     for (var i = 0; i < barwrap.length; i++) {
-      const to = ((participants.sessionDuration[i]/participants.maxDuration)*100)+"%";
+      const to = ((participants.sessionDuration[stimulus.currentlySelected][i]/participants.maxDuration[stimulus.currentlySelected])*100)+"%";
       const from = 100+"%";
       barwrap[i].setAttribute('width', to); //because of the export function
       let animateTag = barwrap[i].getElementsByTagName('animate')[0];
@@ -331,23 +376,19 @@ function printNewAniOutput(htmltag, csstag, sectionindex, html) {
 //export plot
 
 
-
-elmFileUpload.addEventListener('change',onFileUploadChange,false);
-
-function getStartTime(index) {
-  if (participants.highestAOISegmentId.includes(index-1) || index-1 < 0) { return 0 }
-  return aoiSegments.endTime[index-1]
-}
+// function getStartTime(index) {
+//   if (participants.highestAOISegmentId.includes(index-1) || index-1 < 0) { return 0 }
+//   return aoiSegments.endTime[index-1]
+// }
 
 
 function zoomScarf() {
-  const currentButton = event.currentTarget.id;
-  console.log(currentButton);
+
   const zoomOutButton = document.getElementById('zoomOutScarf');
   const chartAnimation = document.getElementById('chareaAni');
   const fromChartWidth = chartAnimation.getAttribute('to').slice(0, -1);
   let toChartWidth = fromChartWidth;
-  if (currentButton === "zoomInScarf") {
+  if (event.currentTarget.id === "zoomInScarf") {
     toChartWidth *= 2;
   } else {
     toChartWidth /= 2;
@@ -472,6 +513,11 @@ function getDownloadedScarfPlot() {
     link.click();
     link.remove();
   }
+}
+
+function handleStimulusChange(selectElement) {
+  stimulus.currentlySelected = selectElement.value;
+  document.getElementsByClassName('chartwrap')[0].innerHTML = paintAbsoluteBars();
 }
 
 // třídění na později
