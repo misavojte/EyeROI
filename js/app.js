@@ -8,7 +8,7 @@ var aoiSegments = {
 
 var aoiCategories = {
   names: [],
-  colors: ["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
+  colors: ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']//colorbrewer //["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
 };
 
 var participants = {
@@ -245,15 +245,15 @@ function paintAbsoluteBars() {
     str += "</svg>";
     //create inner HTML string for Y main labels component
     //it will be inserted to SVG on the next lines
-    yLabInnerStr += "<text y='" + (Number(ypos) + 15) + "'>" + participants.names[k] + "</text>";
+    yLabInnerStr += "<div>" + participants.names[k] + "</div>";
   }
 
   str += "</svg></div>";
-  let labsstr = "<svg xmlns='http://www.w3.org/2000/svg' id='chylabs' width='100%' height='" + (xaxispos + 30) + "'>";
+  let labsstr = "<div id='chylabs'>";
   //add y main labels component
-  labsstr += "<g class='labs' font-size='0.85rem' fill='#4a4a4a'>" + yLabInnerStr + "</g>";
+  labsstr += yLabInnerStr;
   //end tag
-  labsstr += "</svg>";
+  labsstr += "</div>";
   str = labsstr + str;
 
   //add responsive HTML legend
