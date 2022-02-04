@@ -219,42 +219,50 @@ input[type="file"] {
   justify-content: center;
   gap: 7px;
   margin: 12px 0;
+  flex-wrap: wrap;
 }
 
 .chartwrap {
   display: grid;
   grid-template-columns: min-content auto;
-  gap: 4px;
+  column-gap: 4px;
 }
 
 .charea-holder {
   width: 100%;
   overflow: auto;
+  padding: 0 1px
 }
 
 #charea {
-  min-width: 500px
+  min-width: 500px;
+  display: block;
 }
 
 #charea rect:hover {
   fill-opacity: 0.75;
   stroke:black
 }
-#charea rect {
+/* #charea rect {
   transition: .3s all ease-in-out
-}
+} */
 
 #chlegend {
   font-size: .85rem;
   display: flex;
     padding: 7px;
-    column-gap: 25px;
-    row-gap: 5px;
     justify-content: center;
     flex-wrap: wrap;
     align-items: center;
     grid-column: span 2;
     box-sizing: border-box;
+}
+
+#chxlab {
+  grid-column: span 2;
+  font-size: .85rem;
+  margin: auto;
+  margin-bottom: 10px
 }
 
 #chylabs {
@@ -269,10 +277,16 @@ input[type="file"] {
   height: 20px
 }
 
+.labs {
+  font-size: .85rem;
+  fill: var(--c-d3)
+}
+
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 7px
+  gap: 7px;
+  padding: 2px 10px
 }
 
 .legendRect {

@@ -3,12 +3,13 @@ document.getElementById('file-upload').addEventListener('change',onFileUploadCha
 var aoiSegments = {
   startTime: [],
   endTime: [],
+  isFixation: [],
   AOIid: []
 };
 
 var aoiCategories = {
   names: [],
-  colors: ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']//colorbrewer //["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
+  colors: ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"]//cartocolors //["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
 };
 
 var participants = {
@@ -22,6 +23,8 @@ var stimulus = {
   currentlySelected: 0,
   names: []
 }
+
+var lastHandlerAction = null;
 
 
 function onFileUploadChange(e) {
@@ -120,6 +123,7 @@ function process_SMI_Raw_Static(spl) {
       aoiSegments.startTime.push([]);
       aoiSegments.endTime.push([]);
       aoiSegments.AOIid.push([]);
+      //aoiSegments.isFixation.push([]);
 
       stimulus.names.push(spl[i][1]);
       stimulus.currentlySelected = stimulus.names.length - 1;
@@ -151,6 +155,7 @@ function process_SMI_Raw_Static(spl) {
     aoiSegments.AOIid[stimulus.currentlySelected].push(aoiCategories.names[stimulus.currentlySelected].indexOf(spl[x][5]));
     aoiSegments.endTime[stimulus.currentlySelected].push(newEndTime);
     aoiSegments.startTime[stimulus.currentlySelected].push(lastEndTime);
+    //aoiSegments.isFixation[stimulus.currentlySelected].push();
     lastEndTime = newEndTime;
   }
   //get maximu length of session - used for SVG chart
@@ -193,12 +198,12 @@ function paintAbsoluteBars() {
   let yLabInnerStr = "";
   let gapForYLabs = 30;
 
-  const maxDuration = participants.maxDuration[stimulus.currentlySelected];
+  let maxDuration = participants.maxDuration[stimulus.currentlySelected];
 
   //start constructing SVG string
   // let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" role="img">';
 
-  let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='" + (xaxispos + 40) + "'>";
+  let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' style='overflow:visible' width='100%' height='" + (xaxispos + 20) + "'>";
   str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>"
   //add style to SVG string
   // str += '<style>rect{height:100%}.gr{stroke:rgb(0 0 0 / 35%);stroke-width:1}.gr2{stroke:rgb(0 0 0 / 15%);stroke-width:1}.labs{font-size:0.8rem}';
@@ -209,40 +214,33 @@ function paintAbsoluteBars() {
   //add main X,Y axes and start constructing main chart area
   // str += "<svg id='charea' x='" + gapForYLabs + "' width='" + (finalSVGwidth-gapForYLabs) + "'>";
 
-  str += "<g><line class='gr y-gr' stroke='#cbcbcb' stroke-width='1'  x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>";
-  str += "<line class='gr x-gr' stroke='#cbcbcb' stroke-width='1' x1='1' x2='1' y1='" + xaxispos + "' y2='0'></line></g>";
+  str += "<g><line class='gr y-gr' stroke='#cbcbcb' stroke-width='1'  x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>></g>";
 
   //add X axes labels and support Y axes
   //Y axes will be rendered under the sequence bars
-  let tanchor = "text-anchor='start'";
-  const breakStep = getPrettyBreakStep(maxDuration);
-  for (var j = 0; j < maxDuration; j = j+breakStep) {
-    if (j+breakStep > maxDuration) {
-      tanchor = "text-anchor='end'";
-    }
-    str_vedlej_gridX = str_vedlej_gridX + "<line x1='" + j/maxDuration*100 +"%' x2='" + j/maxDuration*100 +"%' y1='0' y2='" + xaxispos + "'></line>";
-    str_labels_gridX = str_labels_gridX + "<text x='" + j/maxDuration*100 + "%' " + tanchor + " y='" + (Number(xaxispos) + 14) + "'>" + j + "</text>"
-    tanchor = "text-anchor='middle'";
-  }
+  // let tanchor = "text-anchor='start'";
+  const breakX = getSteps(maxDuration);
+  maxDuration = breakX.step * breakX.numberOfSteps;
 
-  str = str + "<g class='x-gr gr2' stroke='#cbcbcb' stroke-width='1'>" + str_vedlej_gridX + "</g><g font-size='0.85rem' fill='#4a4a4a' class='labs' id='xLabs'>" + str_labels_gridX + "<text x='50%' text-anchor='middle' y='" + (Number(xaxispos) + 30) + "'>Elapsed time [ms]</text></g>";
+  str += "<g id='chxcomponent'>" + getXComponentOfScarf(xaxispos, breakX) + "</g>";
 
   for (var k = 0; k < participants.names.length; k++) {
-    if (k === 0) {
-      segStart = 0;
-    } else {
-      segStart = participants.highestAOISegmentId[stimulus.currentlySelected][k-1] + 1;
-    }
+    segStart = participants.highestAOISegmentId[stimulus.currentlySelected][k-1] + 1;
+    if (k === 0) { segStart = 0 }
     segEnd = participants.highestAOISegmentId[stimulus.currentlySelected][k];
     ypos += 30;
-    str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "' width='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%'>";
-    str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
+    if (segEnd) {
+      str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "' width='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%'>";
+      str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
 
-    for (var i = segStart; i < segEnd+1; i++) {
-        let recStart = aoiSegments.startTime[stimulus.currentlySelected][i]; //start pos of svg rectangle
-        str += "<rect height='20' data-sid='" + i + "' fill='" +  aoiCategories.colors[aoiSegments.AOIid[stimulus.currentlySelected][i]] + "' class='a" +  aoiSegments.AOIid[stimulus.currentlySelected][i] + "' x='" + (recStart / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%' width='" + ((aoiSegments.endTime[stimulus.currentlySelected][i] - recStart) / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%'></rect>";
+      for (var i = segStart; i < segEnd+1; i++) {
+          let recStart = aoiSegments.startTime[stimulus.currentlySelected][i]; //start pos of svg rectangle
+          str += "<rect height='20' data-sid='" + i + "' fill='" +  aoiCategories.colors[aoiSegments.AOIid[stimulus.currentlySelected][i]] + "' class='a" +  aoiSegments.AOIid[stimulus.currentlySelected][i] + "' x='" + (recStart / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%' width='" + ((aoiSegments.endTime[stimulus.currentlySelected][i] - recStart) / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%'></rect>";
+      }
+      str += "</svg>";
+    } else {
+      console.log("Participant " + participants.names[k] + " has no AOI segments in stimulus " + stimulus.names[stimulus.currentlySelected]);
     }
-    str += "</svg>";
     //create inner HTML string for Y main labels component
     //it will be inserted to SVG on the next lines
     yLabInnerStr += "<div>" + participants.names[k] + "</div>";
@@ -256,10 +254,12 @@ function paintAbsoluteBars() {
   labsstr += "</div>";
   str = labsstr + str;
 
+  str += "<div id='chxlab'>Elapsed time [ms]</div>";
+
   //add responsive HTML legend
   str += "<div id='chlegend'>"
   for (var i = 0; i < aoiCategories.names[stimulus.currentlySelected].length; i++) {
-    str += "<div class='legendItem a" + i + "'><div class='legendRect' style='background:" + aoiCategories.colors[i] + "'></div><div>" + aoiCategories.names[stimulus.currentlySelected][i] + "</div></div>";
+    str += "<div data-aoi='" + i + "' class='legendItem a" + i + "'><div class='legendRect' style='background:" + aoiCategories.colors[i] + "'></div><div>" + aoiCategories.names[stimulus.currentlySelected][i] + "</div></div>";
   }
   str += "</div>";
 
@@ -268,34 +268,50 @@ function paintAbsoluteBars() {
 
 
 function handler(event) {
+  const rect = event.target.closest('#charea rect');
+  const legendItem = event.target.closest('.legendItem');
+  const styleElement = document.querySelector('#charea style');
   // find the closest parent of the event target that
   // matches the selector
-  const closest = event.target.closest('rect');
-  if (!closest) {
-    if (!event.target.closest('#datatooltip')) {
-      if (popup) {
-        popup.style.display = 'none';
-      }
-    }
-    return
-  }
+  if (event.target.closest('#datatooltip')) {return};
+  if (rect) {
     // handle class event
     if (typeof popup !== 'undefined') {
       popup.style.display = 'none';
-      adjustPOPUP(closest.dataset.sid);
+      adjustPOPUP(rect.dataset.sid);
       popup.style.display = "";
     } else {
       // win = document.getElementsByClassName('chartwrap')[0];
       popup = document.createElement('div');
       popup.classList = 'popup';
       popup.id = 'datatooltip';
-      adjustPOPUP(closest.dataset.sid);
+      adjustPOPUP(rect.dataset.sid);
       document.body.appendChild(popup);
     }
+    return
+  }
 
+  if (styleElement) {
+    styleElement.remove();
+  }
+
+  if (legendItem) {
+    highlightAOIcategory();
+  }
+
+  if (popup) {
+    popup.style.display = 'none';
+  }
+
+  function highlightAOIcategory() {
+    const aoiId = legendItem.dataset.aoi;
+    let styleElement = document.createElement('style');
+    styleElement.innerHTML = "rect{opacity:0.2}rect.a"+aoiId+"{opacity:1;stroke:#0000007d}";
+    document.getElementById('charea').append(styleElement);
+  }
 
   function adjustPOPUP(id) {
-    const rectBoundingBox = closest.getBoundingClientRect();
+    const rectBoundingBox = rect.getBoundingClientRect();
     const startTime = aoiSegments.startTime[stimulus.currentlySelected][id];
     popup.innerHTML = "<span>Participant: "+ participants.names[participants.highestAOISegmentId[stimulus.currentlySelected].findIndex(x=>x>=id)] +"</span><span>AOI: "+aoiCategories.names[stimulus.currentlySelected][aoiSegments.AOIid[stimulus.currentlySelected][id]]+"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+aoiSegments.endTime[stimulus.currentlySelected][id].toFixed(1) +" ms</span><span>Duration: "+(aoiSegments.endTime[stimulus.currentlySelected][id] - startTime).toFixed(1) +" ms</span>";
     popup.style.top = window.scrollY + rectBoundingBox.bottom + "px";
@@ -309,9 +325,20 @@ function handler(event) {
 
 function getPrettyBreakStep(numberToBreak, numberOfSteps = 10) {
   let res = numberToBreak/numberOfSteps;
-  let num_of_digits = Math.log(res) * Math.LOG10E + 1 | 0;
-  res = (res/(10**(num_of_digits))).toFixed(1);
+  let num_of_digits = (Math.log(res) * Math.LOG10E + 1 | 0)-1;
+  res = Math.ceil(res/(10**(num_of_digits)));
+  if ((res%2 === 1 && res%5 > 0) && res !== 1) {res++}
+  if (res%6 === 0 || res%8 === 0) {res = 10}
   return res*(10**(num_of_digits))
+}
+
+function getSteps(numberToBreak) {
+  let numberOfSteps = 10;
+  let recentStep = getPrettyBreakStep(numberToBreak, numberOfSteps);
+  while (recentStep === getPrettyBreakStep(numberToBreak, numberOfSteps-1)) {
+    numberOfSteps--
+  }
+  return {numberOfSteps, step: recentStep}
 }
 
 // function getElementIndex(node) {
@@ -324,36 +351,60 @@ function getPrettyBreakStep(numberToBreak, numberOfSteps = 10) {
 
 //other event handlers
 function handleRelative() {
-  const timelineSwitch = document.getElementsByClassName('torelative')[0];
-  const barwrap = document.getElementsByClassName('barwrap');
+  const timelineSwitch = document.getElementsByClassName('torelative')[0], yPos = participants.names.length*30;
+  let barwrap = document.getElementsByClassName('barwrap'), xAxes = document.querySelectorAll('.x-gr line');
+  let isToRelative = false, maxDur = participants.maxDuration[stimulus.currentlySelected], from, to, xComponentHtml;
+  const absoluteSteps = getSteps(maxDur);
+  maxDur = participants.maxDuration[stimulus.currentlySelected];
 
   if (!timelineSwitch.classList.contains('activebtn3')) {
-    for (var i = 0; i < barwrap.length; i++) {
-      const from = ((participants.sessionDuration[stimulus.currentlySelected][i]/participants.maxDuration[stimulus.currentlySelected])*100)+"%";
-      const to = 100+"%";
-      barwrap[i].setAttribute('width', to); //because of the export function
-      let animateTag = barwrap[i].getElementsByTagName('animate')[0];
-
-        animateTag.setAttribute('from', from);
-        animateTag.setAttribute('to', to);
-        animateTag.beginElement();
-
-    }
-
-    timelineSwitch.classList.add('activebtn3');
+    isToRelative = true;
+    xComponentHtml = getXComponentOfScarf(yPos, {numberOfSteps:10,step:10});
+    document.getElementById('chxlab').innerHTML = 'Elapsed time [%]';
+    timelineSwitch.classList.add('activebtn3')
   } else {
-    for (var i = 0; i < barwrap.length; i++) {
-      const to = ((participants.sessionDuration[stimulus.currentlySelected][i]/participants.maxDuration[stimulus.currentlySelected])*100)+"%";
-      const from = 100+"%";
-      barwrap[i].setAttribute('width', to); //because of the export function
-      let animateTag = barwrap[i].getElementsByTagName('animate')[0];
-
-        animateTag.setAttribute('from', from);
-        animateTag.setAttribute('to', to);
-        animateTag.beginElement();
-    }
-    timelineSwitch.classList.remove('activebtn3');
+    xComponentHtml = getXComponentOfScarf(yPos, absoluteSteps);
+    document.getElementById('chxlab').innerHTML = 'Elapsed time [ms]';
+    timelineSwitch.classList.remove('activebtn3')
   }
+
+  maxDur = absoluteSteps.numberOfSteps*absoluteSteps.step;
+
+  for (var i = 0; i < barwrap.length; i++) {
+    const absoluteLength = (participants.sessionDuration[stimulus.currentlySelected][i]/maxDur)*100;
+    let animateTag = barwrap[i].getElementsByTagName('animate')[0];
+    if (isToRelative === true) {
+      to = 100;
+      from = absoluteLength
+    } else {
+      from = 100;
+      to = absoluteLength
+    }
+      from += "%";
+      to += "%";
+
+      barwrap[i].setAttribute('width', to); //because of the export function
+      animateTag.setAttribute('from', from);
+      animateTag.setAttribute('to', to);
+      animateTag.beginElement();
+  }
+
+  document.getElementById('chxcomponent').innerHTML = xComponentHtml;
+}
+
+function getXComponentOfScarf(yPosition, breakX) {
+  let lines = "", labels = "", anchor = "text-anchor='start'";
+  const maxDuration = breakX.numberOfSteps * breakX.step;
+  for (var j = 0; j < breakX.numberOfSteps + 1; j++) {
+    const currentStepX = (breakX.step*j);
+    if (j === breakX.numberOfSteps) {
+      anchor = "text-anchor='end'";
+    }
+    lines += "<line x1='" + currentStepX/maxDuration*100 +"%' x2='" + currentStepX/maxDuration*100 +"%' y1='0' y2='" + yPosition + "'></line>";
+    labels += "<text x='" + currentStepX/maxDuration*100 + "%' " + anchor + " y='" + (yPosition + 14) + "'>" + currentStepX + "</text>"
+    anchor = "text-anchor='middle'";
+  }
+  return "<g stroke='#cbcbcb' stroke-width='1'>" + lines + "</g><g class='labs'>" + labels + "</g>"
 }
 
 
@@ -422,7 +473,7 @@ function closeDownloadScarfPlotScreen() {
 }
 
 function getDownloadedScarfPlot() {
-  const gapForYLabs = 30;
+  let gapForYLabs; //will be defined in getYLabs()
   const originalChartArea = document.getElementById('charea')
   const originalChartHeight = originalChartArea.getBoundingClientRect().height;
   let height = originalChartHeight;
@@ -435,8 +486,9 @@ function getDownloadedScarfPlot() {
   while (animateTags.length > 0) {
     animateTags[0].remove();
   }
-  let clonedChartYLabels = document.getElementById('chylabs').cloneNode(true);
 
+  const yLabels = getYLabs();
+  const xLabel = getXlabel();
   const svgLegend = getSVGLegend(); //function adjusting var height as well
 
   let wholeChartSvg = document.createElement('svg');
@@ -447,10 +499,12 @@ function getDownloadedScarfPlot() {
   clonedChartArea.setAttribute('width', width-gapForYLabs);
   clonedChartArea.setAttribute('x', gapForYLabs);
   clonedChartArea.removeAttribute('xmlns');
-  clonedChartYLabels.removeAttribute('xmlns');
+
   wholeChartSvg.appendChild(clonedChartArea);
-  wholeChartSvg.appendChild(clonedChartYLabels);
+  wholeChartSvg.appendChild(yLabels);
+  wholeChartSvg.appendChild(xLabel);
   wholeChartSvg.appendChild(svgLegend);
+  wholeChartSvg.setAttribute("style", "font-size:0.85rem");
 
   //create SVG legend
 
@@ -476,6 +530,31 @@ function getDownloadedScarfPlot() {
     triggerDownload(finalImage, 'test.' + type);
   };
 
+  function getYLabs() {
+    const yLabsOrigin = document.getElementById('chylabs');
+    const yLabsItems = yLabsOrigin.childNodes;
+    const yLabsBounding = yLabsOrigin.getBoundingClientRect();
+    gapForYLabs = yLabsBounding.width;
+    let yLabsGroup = document.createElement('g');
+    let htmlString = "";
+    for (var i = 0; i < yLabsItems.length; i++) {
+        const bounding = yLabsItems[i].getBoundingClientRect();
+        const yPosition = (bounding.y+bounding.height/2) - yLabsBounding.y;
+        htmlString += "<text dominant-baseline='middle' y='" + yPosition + "'>" + yLabsItems[i].innerText + "</text>"
+    }
+    yLabsGroup.innerHTML = htmlString;
+    return yLabsGroup
+  }
+
+  function getXlabel() {
+    const label = document.getElementById('chxlab');
+    const bounding = label.getBoundingClientRect();
+    let xLabelGroup = document.createElement('g');
+    xLabelGroup.innerHTML = "<text text-anchor='middle' dominant-baseline='middle' x='50%' y='" + (height+bounding.height/2) + "'>" + label.innerHTML + "</text>";
+    height += bounding.height; //changing variable outside function!
+    return xLabelGroup
+  }
+
   function getSVGLegend() {
     let htmlLegend = document.getElementById('chlegend');
 
@@ -487,12 +566,11 @@ function getDownloadedScarfPlot() {
     for (var i = 0; i < htmlLegendItems.length; i++) {
       const bounding = htmlLegendItems[i].getBoundingClientRect();
 
-      svgInnerString += "<rect x='" + (bounding.x-htmlLegendBounding.x) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)) + "' fill='" + aoiCategories.colors[i] + "' width='12' height='12'></rect>";
-      svgInnerString += "<text x='" + ((bounding.x+19)-htmlLegendBounding.x) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)+12) + "'>" + aoiCategories.names[i] + "</text>";
+      svgInnerString += "<rect x='" + (bounding.x-htmlLegendBounding.x+10) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)+2) + "' fill='" + aoiCategories.colors[i] + "' width='12' height='12'></rect>";
+      svgInnerString += "<text x='" + ((bounding.x+19)-htmlLegendBounding.x+10) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)+12) + "'>" + aoiCategories.names[stimulus.currentlySelected][i] + "</text>";
     }
     let svgGroup = document.createElement('g');
     svgGroup.innerHTML = svgInnerString;
-    svgGroup.setAttribute('font-size', '0.85rem');
     height += htmlLegendBounding.height; //changing variable outside function!
     htmlLegend.style.width = "";
     return svgGroup
