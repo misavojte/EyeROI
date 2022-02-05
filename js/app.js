@@ -28,7 +28,7 @@ function initDataObjects() {
 
 function startDemo() {
   fetch('demodata.json')
-  .then(data => JSON.parse(data))
+  .then(response => response.json())
   .then(data => {
     participants = data[0];
     aoiCategories = data[1];
