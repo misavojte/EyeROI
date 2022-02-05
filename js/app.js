@@ -1,5 +1,5 @@
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
-document.getElementById('start-demo').addEventListener('onclick',startDemo,false);
+document.getElementById('start-demo').addEventListener('click',startDemo,false);
 
 var aoiSegments, aoiCategories, participants, stimulus, popup;
 
@@ -28,6 +28,7 @@ function initDataObjects() {
 
 function startDemo() {
   fetch('demodata.json')
+  .then(data => JSON.parse(data))
   .then(data => {
     participants = data[0];
     aoiCategories = data[1];
