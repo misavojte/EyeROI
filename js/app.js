@@ -1,4 +1,5 @@
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
+document.getElementById('start-demo').addEventListener('onclick',startDemo,false);
 
 var aoiSegments, aoiCategories, participants, stimulus, popup;
 
@@ -23,6 +24,17 @@ function initDataObjects() {
     currentlySelected: 0,
     names: []
   }
+}
+
+function startDemo() {
+  fetch('demodata.json')
+  .then(data => {
+    participants = data[0];
+    aoiCategories = data[1];
+    stimulus = data[2];
+    aoiSegments = data[3];
+    printSequenceChart()
+  })
 }
 
 function onFileUploadChange(e) {
