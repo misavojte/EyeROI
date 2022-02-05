@@ -1,61 +1,49 @@
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
 
-var aoiSegments = {
-  startTime: [],
-  endTime: [],
-  isFixation: [],
-  AOIid: []
-};
+var aoiSegments, aoiCategories, participants, stimulus, popup;
 
-var aoiCategories = {
-  names: [],
-  colors: ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"]//cartocolors //["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
-};
-
-var participants = {
-  sessionDuration: [],
-  maxDuration: [],
-  names: [],
-  highestAOISegmentId: []
-};
-
-var stimulus = {
-  currentlySelected: 0,
-  names: []
+function initDataObjects() {
+  aoiSegments = {
+    startTime: [],
+    endTime: [],
+    isFixation: [],
+    AOIid: []
+  };
+  aoiCategories = {
+    names: [],
+    colors: ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"]//cartocolors //["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
+  };
+  participants = {
+    sessionDuration: [],
+    maxDuration: [],
+    names: [],
+    highestAOISegmentId: []
+  };
+  stimulus = {
+    currentlySelected: 0,
+    names: []
+  }
 }
-
-var lastHandlerAction = null;
-
 
 function onFileUploadChange(e) {
-let file = e.target.files[0];
-let filesuffix = file.name.split('.').pop();
+const file = e.target.files[0];
+if (file) {
+  const filesuffix = file.name.split('.').pop();
 
-printDataCanvas();
-printNewAniOutput('h3', 'anl', 1, 'Input eye-tracking data');
-printNewAniOutput('div', 'metricfield', 1, ('<span>File:</span><span>' + file.name + " (" + file.size/1000 + " kB)</span>"));
+  initDataObjects();
+  printDataCanvas();
+  // printNewAniOutput('h3', 'anl', 1, 'Input eye-tracking data');
+  // printNewAniOutput('div', 'metricfield', 1, ('<span>File:</span><span>' + file.name + " (" + file.size/1000 + " kB)</span>"));
 
-  if (filesuffix == "txt") {
-    let fr = new FileReader();
-    fr.onload = function() {
-      preprocess_TXT(fr.result);
+    if (filesuffix == "txt") {
+      let fr = new FileReader();
+      fr.onload = function() {
+        preprocess_TXT(fr.result);
+      }
+      fr.readAsText(file);
     }
-    fr.readAsText(file);
-  } else {
-    showDataType(0);
-  }
 }
-
-function showDataType(a) {
-  let css = "metricfield";
-  if (a == 0) {
-    a = "Not supported eye-tracking data";
-    css =+ "wrong";
-  }
-  printNewAniOutput('div', css, 1, '<span>Data type:</span><span>'+a+'</span>')
 }
-
-var popup;
 
   //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
 
@@ -410,19 +398,18 @@ function getXComponentOfScarf(yPosition, breakX) {
 
 // print new html elements functions
 function printDataCanvas() {
-  let dcanvas = document.createElement("section");
-  let inner = "<h2 class='anl anim'>Your analysis and visualization</h2><section class='anh'></section><section id='chartsec' class='anh'></section>"
-  dcanvas.innerHTML = inner;
-  document.getElementsByTagName('main')[0].insertBefore(dcanvas, document.getElementsByTagName('section')[1]);
+  let dcanvas = document.getElementById('analysis');
+  const html = "<h2 class='anl anim'>Your analysis and visualization</h2><section class='anh'></section><section id='chartsec' class='anh'></section>"
+  if (dcanvas) {
+    dcanvas.innerHTML = html
+  } else {
+    dcanvas = document.createElement("section");
+    dcanvas.id = "analysis";
+    dcanvas.innerHTML = html;
+    document.getElementsByTagName('main')[0].insertBefore(dcanvas, document.getElementById('about'))
+  }
 }
 
-function printNewAniOutput(htmltag, csstag, sectionindex, html) {
-  let newelement = document.createElement(htmltag);
-  newelement.classList = csstag;
-  newelement.classList.add('anim');
-  newelement.innerHTML = html;
-  document.getElementsByClassName('anh')[sectionindex].appendChild(newelement);
-}
 
 //export plot
 
