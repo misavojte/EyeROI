@@ -57,7 +57,7 @@ function preprocess_TXT(fr) {
 
   //console.log(spl[0]);
   if (spl[0].includes("RecordingTime [ms]")) {
-    showDataType("Static Raw data (SMI)");
+    // showDataType("Static Raw data (SMI)");
     if (spl[0].includes("AOI Name Right")) {
       //send file without header and useless last row
       // spl.shift();
