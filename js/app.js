@@ -28,13 +28,16 @@ function initDataObjects() {
 
 function startDemo() {
   fetch('demodata.json')
-  .then(response => response.json())
+  .then(response => {
+    printDataCanvas();
+    return response.json()
+  })
   .then(data => {
     participants = data[0];
     aoiCategories = data[1];
     stimulus = data[2];
     aoiSegments = data[3];
-    printSequenceChart()
+    printSequenceChart();
   })
 }
 
