@@ -1,18 +1,23 @@
+"use strict";
+
+var aoiSegments;
+var aoiCategories;
+var participants;
+var stimulus
+var popup;
+
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
 document.getElementById('start-demo').addEventListener('click',startDemo,false);
-
-var aoiSegments, aoiCategories, participants, stimulus, popup;
 
 function initDataObjects() {
   aoiSegments = {
     startTime: [],
     endTime: [],
-    isFixation: [],
     AOIid: []
   };
   aoiCategories = {
     names: [],
-    colors: ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"]//cartocolors //["#a6cee3","#b2df8a","#fb9a99","#fdbf6f","#cab2d6","#b15928", "#fccde5", "#d9d9d9", "#35978f"]
+    colors: ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"]//cartocolor
   };
   participants = {
     sessionDuration: [],
@@ -27,7 +32,7 @@ function initDataObjects() {
 }
 
 function startDemo() {
-  fetch('demodata.json')
+  fetch("demodata.json")
   .then(response => {
     printDataCanvas();
     return response.json()
@@ -201,7 +206,8 @@ function paintAbsoluteBars() {
   let str_labels_gridX = "";
   let yLabInnerStr = "";
   let gapForYLabs = 30;
-
+  let segStart;
+  let segEnd;
   let maxDuration = participants.maxDuration[stimulus.currentlySelected];
 
   //start constructing SVG string

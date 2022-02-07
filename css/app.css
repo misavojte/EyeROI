@@ -5,7 +5,7 @@
   --c-d1: #000000e6;
   --c-d2: #000000e6;
   --c-d3: #000000b3;
-  --c-red: #da4437;
+  --c-red: #d24235;
   --c-red2: #cd14042b;
 }
 
@@ -86,7 +86,7 @@ input[type="file"] {
     cursor: pointer;
     color: var(--c-l1);
     font-weight: bold;
-    background: #cd1404;
+    background: var(--c-red);
     border-radius: 5px;
     border: none
 }
