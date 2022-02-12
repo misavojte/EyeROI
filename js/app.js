@@ -6,6 +6,8 @@ var participants;
 var stimulus
 var popup;
 
+var testArr = [];
+
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
 document.getElementById('start-demo').addEventListener('click',startDemo,false);
 
@@ -23,11 +25,30 @@ function initDataObjects() {
     sessionDuration: [],
     maxDuration: [],
     names: [],
-    highestAOISegmentId: []
+    highestAOISegmentId: [],
+    aoiSegmentIDStart: [],
   };
   stimulus = {
     currentlySelected: 0,
     names: []
+  }
+}
+
+function pushNewArraysToMainData() {
+  participants.sessionDuration.push([]);
+  participants.highestAOISegmentId.push([]);
+  participants.aoiSegmentIDStart.push([]);
+  aoiSegments.startTime.push([]);
+  aoiSegments.endTime.push([]);
+  aoiSegments.AOIid.push([]);
+}
+
+function processParticipantsMaxDurations() {
+  //get maximu length of session - used for SVG chart
+  for (var i = 0; i < stimulus.names.length; i++) {
+    //filter out undefineds, nulls
+    const filteredDurs = participants.sessionDuration[i].filter(x=>(x));
+    participants.maxDuration[i] = Math.max(...filteredDurs);
   }
 }
 
@@ -51,12 +72,12 @@ const file = e.target.files[0];
 if (file) {
   const filesuffix = file.name.split('.').pop();
 
-  initDataObjects();
+  initDataObjects(); //for eventual re-uploading of different data file
   printDataCanvas();
   // printNewAniOutput('h3', 'anl', 1, 'Input eye-tracking data');
   // printNewAniOutput('div', 'metricfield', 1, ('<span>File:</span><span>' + file.name + " (" + file.size/1000 + " kB)</span>"));
 
-    if (filesuffix == "txt") {
+    if (filesuffix === "txt" || filesuffix === "tsv") {
       let fr = new FileReader();
       fr.onload = function() {
         preprocess_TXT(fr.result);
@@ -69,7 +90,7 @@ if (file) {
   //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
 
 function preprocess_TXT(fr) {
-  let colDelimiters = ['\t',',',';'];
+  //let colDelimiters = ['\t',',',';'];
 
   //find column delimiter
   //let colDelimiter = colDelimiters.find(item => firstRows[0].split(item).length === firstRows[2].split(item).length && firstRows[0].split(item).length > 1);
@@ -84,24 +105,239 @@ function preprocess_TXT(fr) {
   } else if (spl[0].includes("Event Start Trial Time [ms]")	&& spl[0].includes("Event End Trial Time [ms]")) {
     // Event Statistics SMI
     processSMIevent(spl);
+  } else if (spl[0].includes("Recording timestamp")) {
+    processTobiiRaw(spl);
+  }
+}
+
+function processFinalData() {
+  //get last index of segments for participants
+  let endSegmentIds = [];
+  let highestTime = [];
+
+  for (var stimulusId = 0; stimulusId < stimulus.names.length; stimulusId++) {
+    endSegmentIds.push([]);
+    highestTime.push([]);
+    let stimulusStarts = participants.aoiSegmentIDStart[stimulusId];
+    for (var k = 0; k < stimulusStarts.length; k++) {
+      //potenciální problém, pokud jen jedna sekce??
+      let endSegment = stimulusStarts[k+1] - 1;
+      if (stimulusStarts[k] === undefined) {
+        //remove empty spaces from array
+        participants.aoiSegmentIDStart[stimulusId][k] = null;
+        endSegment = null
+      } else if (!endSegment) {
+          for (var e = 2; !endSegment && e < stimulusStarts.length + 1; e++) {
+            if (k < stimulusStarts.length - 1) {
+              endSegment = stimulusStarts[k+e] - 1;
+            } else {
+              endSegment = aoiSegments.endTime[stimulusId].length - 1; //tohle je ok
+            }
+          }
+      }
+      //jsemzoufala.push(endSegment)
+      endSegmentIds[stimulusId].push(endSegment);
+      highestTime[stimulusId].push(aoiSegments.endTime[stimulusId][endSegment])
+    }
+  }
+  participants.highestAOISegmentId = endSegmentIds;
+  participants.sessionDuration = highestTime
+}
+
+function processRowObject(rowObject) {
+  let indexOfStimulus = stimulus.names.indexOf(rowObject.stimulus);
+  if (indexOfStimulus === -1) {
+    //stimulus not yet saved - let's fix it!
+    indexOfStimulus = stimulus.names.length;
+    stimulus.names.push(rowObject.stimulus);
+    aoiCategories.names.push([]);
+    pushNewArraysToMainData()
+  }
+  let indexOfParticipant = participants.names.indexOf(rowObject.participant);
+  if (indexOfParticipant === -1) {
+    //participant not yet saved - let's fix it!
+    indexOfParticipant = participants.names.length;
+    participants.names.push(rowObject.participant);
+  }
+  if (!rowObject.isAoiPrepared) {
+    //process AOI
+    let aoiCatsNames = aoiCategories.names[indexOfStimulus];
+    let aoiIndex = aoiCatsNames.indexOf(rowObject.aoi);
+    if (aoiIndex === -1) {
+      aoiCatsNames.push(rowObject.aoi);
+      aoiIndex = aoiCatsNames.indexOf(rowObject.aoi);
+    }
+    rowObject.aoi = aoiIndex+"";
+  }
+
+  const previousSegmentInStimulusStart = aoiSegments.startTime[indexOfStimulus][aoiSegments.startTime[indexOfStimulus].length-1];
+  // console.log(previousSegmentInStimulusStart + ", " + rowObject.start);
+  const isNewParticipant = !(rowObject.start > previousSegmentInStimulusStart); //musí být číslo
+  if (isNewParticipant) {
+    let start = aoiSegments.startTime[indexOfStimulus].length;
+    participants.aoiSegmentIDStart[indexOfStimulus][indexOfParticipant] = start;
+  }
+
+  aoiSegments.startTime[indexOfStimulus].push(rowObject.start);
+  aoiSegments.endTime[indexOfStimulus].push(rowObject.end);
+  aoiSegments.AOIid[indexOfStimulus].push(rowObject.aoi);
+
+}
+
+function processTobiiRaw(data, delimiter = "\t") {
+  console.time("TobiiRaw");
+  let col = getColumnsPositions(data[0]); //fun also adding data to stimulus and aoiCategories
+  let currentRow;
+  let baseTime;
+  let lastParticipant;
+  let lastStimulus;
+  let lastAoiColumns;
+  let lastStartTime;
+  let lastEndTime;
+  let currentTime;
+  let backupTime;
+  let currentAoiColumns;
+  let currentAoiColumnsIndexes;
+  let isThereOpenSegment = false;
+
+  for (var i = 1; i < data.length; i++) {
+      currentRow = data[i].split(delimiter);
+      if (stimulus.names.includes(currentRow[col.stimulus]) || isThereOpenSegment) {
+
+        currentAoiColumnsIndexes = col.aoi[stimulus.names.indexOf(currentRow[col.stimulus])];
+        if (currentAoiColumnsIndexes) {
+          currentAoiColumns = currentAoiColumnsIndexes.map(x=>currentRow[x]).join("");
+        } else {
+          currentAoiColumns = undefined;
+        };
+
+
+        if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant || currentAoiColumns !== lastAoiColumns) {
+
+              currentTime = currentRow[col.time];
+              if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant) {
+                //!stimulus.names.includes(currentRow[col.stimulus])
+                //pokud mimo, tak pro sichr vezme backup!!
+                currentTime = backupTime;
+              }
+              //uložit předcházející start time segmentu - pokud tu je
+              if (isThereOpenSegment) {
+
+                let previousSegment = {
+                start: lastStartTime - baseTime,
+                end: currentTime - baseTime,
+                stimulus: lastStimulus,
+                participant: lastParticipant,
+                isAoiPrepared: true,
+                aoi: getAoiIndexes(lastAoiColumns)};
+                testArr.push(previousSegment);
+                processRowObject(previousSegment);
+                isThereOpenSegment = false;
+              }
+
+
+              if (stimulus.names.includes(currentRow[col.stimulus])) {
+                //nyní lze mít nový lastStartTime
+                lastStartTime = currentTime;
+                lastAoiColumns = currentAoiColumns;
+                isThereOpenSegment = true;
+
+                if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentTime }
+                if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentTime }
+              }
+            }
+      }
+      //důležité!!!!
+      backupTime = currentRow[col.time];
+  }
+
+  console.timeEnd("TobiiRaw");
+  processFinalData();
+  processParticipantsMaxDurations();
+  printSequenceChart();
+
+  function getAoiIndexes(stringOfBinaries) {
+    let indexesArray = [];
+    let stringResult = "";
+    for (var i = 0; i < stringOfBinaries.length; i++) {
+      if (stringOfBinaries[i] === "1") {indexesArray.push(i)}
+    }
+    stringResult = indexesArray.join("_");
+    if (stringResult === "") {
+      //no AOI hitted
+      stringResult = stringOfBinaries.length + "";
+      if (!aoiCategories.names[stimulus.names.indexOf(lastStimulus)].includes("None")) {
+        aoiCategories.names[stimulus.names.indexOf(lastStimulus)].push("None")
+      }
+    }
+    return (stringResult)
+  }
+
+  function getColumnsPositions(header) {
+    console.time("TobiiRawHeader");
+    header = header.split(delimiter);
+    const columnPositions = {time: header.indexOf("Recording timestamp"),
+                            stimulus: header.indexOf("Presented Stimulus name"),
+                            participant: header.indexOf("Participant name"),
+                            category: header.indexOf("Eye movement type"),
+                            aoi: []};
+
+    //format of Tobii AOI columns is: "AOI hit [#NAME_OF_STIMULUS - #NAME_OF_AOI_CATEGORY]"
+    const aoiColumns = header.filter((x)=>(x.startsWith("AOI hit [")));
+    const uniqueStimulusNames = [...new Set(aoiColumns.map(x => x.replace(/AOI hit \[|\s-.*?\]/g, "")).sort())];
+    stimulus.names = uniqueStimulusNames;
+
+    for (var i = 0; i < uniqueStimulusNames.length; i++) {
+      const currentStimulusAoiColumns = aoiColumns.filter((x)=>(x.startsWith("AOI hit ["+uniqueStimulusNames[i])));
+      const positionOfFirstColumn = header.indexOf(currentStimulusAoiColumns[0]);
+      let aoiNames = [];
+      let aoiPositions = [];
+      currentStimulusAoiColumns.forEach((item, i) => {
+        aoiNames.push(item.replace(/A.*?- |\]/g, ""));
+        aoiPositions.push(i + positionOfFirstColumn)
+      });
+      columnPositions.aoi.push(aoiPositions);
+
+      aoiCategories.names.push(aoiNames);
+      pushNewArraysToMainData();
+    }
+    console.timeEnd("TobiiRawHeader");
+    return columnPositions
   }
 }
 
 function processSMIevent(data) {
   const DELIMITER = "\t";
   let col = getColumnsPositions(data[0]);
-  let lastEndTime;
-  let lastStartTime;
-  let lastRow;
-  let lastStimulus;
-  let lastParticipant;
-  let segmentAOIix;
-
   let currentRow;
-  let previousStimulusID;
-  let previousSegmentID;
+  let lastStartTime;
 
-  let isEndRow;
+  for (var i = 1; i < data.length; i++) {
+    currentRow = data[i].split(DELIMITER);
+
+    if (currentRow[col.start] !== lastStartTime && currentRow[col.start] !== undefined) {
+      //SMI Event statistics has usually redundant (doubled) data
+      //write previous segment
+      let previousSegment = {
+      start: Number(currentRow[col.start]),
+      end: Number(currentRow[col.end]),
+      stimulus: currentRow[col.stimulus],
+      participant: currentRow[col.participant],
+      isAoiPrepared: false,
+      aoi: currentRow[col.aoi]};
+      testArr.push(previousSegment);
+      lastStartTime = currentRow[col.start];
+      processRowObject(previousSegment);
+    }
+
+    // if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentTime }
+    // if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentTime }
+
+  }
+
+  processFinalData();
+  processParticipantsMaxDurations();
+  printSequenceChart();
 
   function getColumnsPositions(header) {
     header = header.split(DELIMITER);
@@ -112,77 +348,6 @@ function processSMIevent(data) {
     const aoi = header.indexOf("AOI Name");
     return {start, end, stimulus, participant, aoi}
   }
-
-  for (var i = 1; i < data.length; i++) {
-    currentRow = data[i].split(DELIMITER);
-
-    if (currentRow[col.start] !== lastStartTime) {
-      //SMI Event statistics has usually redundant (doubled) data
-      previousStimulusID = stimulus.currentlySelected;
-      previousSegmentID = segmentAOIix;
-      isEndRow = (currentRow[col.stimulus]) ? false : true;
-
-      if (currentRow[col.stimulus] !== lastStimulus) { newStimulus() }
-      if (currentRow[col.participant] !== lastParticipant) { newParticipant() }
-      if (!isEndRow) {newSegment()};
-    }
-  }
-
-  function newStimulus() {
-    const indexOfCurrentStimulus = stimulus.names.indexOf(currentRow[col.stimulus]);
-    if (!isEndRow) {
-      if (indexOfCurrentStimulus === -1) {
-        //this stimulus doesn't exist (index is -1)
-        participants.sessionDuration.push([]);
-        participants.highestAOISegmentId.push([]);
-        aoiCategories.names.push([]);
-        aoiSegments.startTime.push([]);
-        aoiSegments.endTime.push([]);
-        aoiSegments.AOIid.push([]);
-        stimulus.names.push(currentRow[col.stimulus]);
-        stimulus.currentlySelected = stimulus.names.length - 1;
-        segmentAOIix = -1;
-      } else {
-        segmentAOIix = aoiSegments.AOIid[indexOfCurrentStimulus].length - 1;
-        stimulus.currentlySelected = indexOfCurrentStimulus;
-      }
-      lastStimulus = currentRow[col.stimulus];
-    }
-    newParticipant()
-  }
-
-  function newParticipant() {
-
-    if (lastParticipant) {
-      //do stuff for the previous one
-      participants.sessionDuration[previousStimulusID].push(Number(lastEndTime));
-      participants.highestAOISegmentId[previousStimulusID].push(previousSegmentID);
-    }
-
-    if (!isEndRow) {
-      if (!participants.names.includes(currentRow[col.participant])) {
-        participants.names.push(currentRow[col.participant]);
-      }
-      lastParticipant = currentRow[col.participant]
-    }
-  }
-
-  function newSegment() {
-    segmentAOIix++;
-    if (!aoiCategories.names[stimulus.currentlySelected].includes(currentRow[col.aoi])) {
-      aoiCategories.names[stimulus.currentlySelected].push(currentRow[col.aoi]);
-    }
-    aoiSegments.AOIid[stimulus.currentlySelected].push(aoiCategories.names[stimulus.currentlySelected].indexOf(currentRow[col.aoi]));
-    aoiSegments.endTime[stimulus.currentlySelected].push(Number(currentRow[col.end]));
-    aoiSegments.startTime[stimulus.currentlySelected].push(Number(currentRow[col.start]));
-    lastEndTime = currentRow[col.end];
-    lastStartTime = currentRow[col.start]
-  }
-  //get maximu length of session - used for SVG chart
-  for (var i = 0; i < stimulus.names.length; i++) {
-    participants.maxDuration[i] = Math.max(...participants.sessionDuration[i]);
-  }
-  printSequenceChart();
 
 }
 
@@ -224,12 +389,8 @@ function process_SMI_Raw_Static(spl) {
     const indexOfCurrentStimulus = stimulus.names.indexOf(spl[i][col.stimulus]);
     if (indexOfCurrentStimulus === -1) {
       //this stimulus doesn't exist (index is -1)
-      participants.sessionDuration.push([]);
-      participants.highestAOISegmentId.push([]);
       aoiCategories.names.push([]);
-      aoiSegments.startTime.push([]);
-      aoiSegments.endTime.push([]);
-      aoiSegments.AOIid.push([]);
+      pushNewArraysToMainData();
 
       stimulus.names.push(spl[i][col.stimulus]);
       stimulus.currentlySelected = stimulus.names.length - 1;
@@ -273,10 +434,7 @@ function process_SMI_Raw_Static(spl) {
     if (aoi === undefined) {aoi = header.indexOf("AOI Name Left")}
     return {time, stimulus, participant, aoi}
   }
-  //get maximu length of session - used for SVG chart
-  for (var i = 0; i < stimulus.names.length; i++) {
-    participants.maxDuration[i] = Math.max(...participants.sessionDuration[i]);
-  }
+  processParticipantsMaxDurations();
   printSequenceChart();
 }
 
@@ -305,7 +463,6 @@ function printSequenceChart() {
 
 function paintAbsoluteBars() {
 
-  // let current_participant = a[0][0];
   let ypos = -30;
   let xaxispos = participants.names.length*30;
   let str_vedlej_gridX = "";
@@ -315,21 +472,11 @@ function paintAbsoluteBars() {
   let segStart;
   let segEnd;
   let maxDuration = participants.maxDuration[stimulus.currentlySelected];
-
-  //start constructing SVG string
-  // let str = '<svg xmlns="http://www.w3.org/2000/svg" class="chart" width="' + finalSVGwidth + '" height="' + (xaxispos + 30) +'" role="img">';
+  let writtenGradients = [];
+  let gradientComponent = "";
 
   let str = "<div class='charea-holder'><svg xmlns='http://www.w3.org/2000/svg' id='charea' style='overflow:visible' width='100%' height='" + (xaxispos + 20) + "'>";
   str += "<animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>"
-  //add style to SVG string
-  // str += '<style>rect{height:100%}.gr{stroke:rgb(0 0 0 / 35%);stroke-width:1}.gr2{stroke:rgb(0 0 0 / 15%);stroke-width:1}.labs{font-size:0.8rem}';
-  // for (var i = 0; i < aoiCategories.colors.length; i++) {
-  //   str += '.a' + i + '{fill:' + aoiCategories.colors[i] + '}';
-  // }
-  // str += '</style>';
-  //add main X,Y axes and start constructing main chart area
-  // str += "<svg id='charea' x='" + gapForYLabs + "' width='" + (finalSVGwidth-gapForYLabs) + "'>";
-
   str += "<g><line class='gr y-gr' stroke='#cbcbcb' stroke-width='1'  x1='0' x2='100%' y1='" + xaxispos + "' y2='" + xaxispos + "'></line>></g>";
 
   //add X axes labels and support Y axes
@@ -341,17 +488,42 @@ function paintAbsoluteBars() {
   str += "<g id='chxcomponent'>" + getXComponentOfScarf(xaxispos, breakX) + "</g>";
 
   for (var k = 0; k < participants.names.length; k++) {
-    segStart = participants.highestAOISegmentId[stimulus.currentlySelected][k-1] + 1;
-    if (k === 0) { segStart = 0 }
+    segStart = participants.aoiSegmentIDStart[stimulus.currentlySelected][k];
     segEnd = participants.highestAOISegmentId[stimulus.currentlySelected][k];
     ypos += 30;
     if (segEnd) {
+
       str += "<svg class='barwrap' y='" + ypos + "' data-pid='" + k + "' width='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%'>";
       str += "<animate attributeName='width' from='0%' to='" + ((participants.sessionDuration[stimulus.currentlySelected][k]/maxDuration)*100) +"%' dur='0.3s' fill='freeze'/>"
 
       for (var i = segStart; i < segEnd+1; i++) {
+          //aois_gradients if more in one segment
+          let currentAoi = aoiSegments.AOIid[stimulus.currentlySelected][i];
+          let currentAoiArr = currentAoi.split("_");
+          let currentAoiFill;
+          let currentAoiClass;
+
+          if (currentAoiArr.length > 1) {
+            if (!writtenGradients.includes(currentAoi)) {
+              gradientComponent += "<linearGradient id='SPgradient" + currentAoi + "' gradientTransform='rotate(90)'>";
+              const step = 100/currentAoiArr.length;
+              for (var e = 0; e < currentAoiArr.length; e++) {
+                gradientComponent += "<stop offset='" + e*step + "%' stop-color='" + aoiCategories.colors[currentAoiArr[e]] + "'></stop>";
+                gradientComponent += "<stop offset='" + (e+1)*step + "%' stop-color='" + aoiCategories.colors[currentAoiArr[e]] + "'></stop>";
+              }
+              gradientComponent += "</linearGradient>";
+              writtenGradients.push(currentAoi)
+            }
+
+            currentAoiFill = "url(#SPgradient" + currentAoi + ")";
+            currentAoiClass = currentAoiArr.map(i=>"a"+i).join(" ");
+          } else {
+            currentAoiFill = aoiCategories.colors[currentAoi];
+            currentAoiClass = "a" + currentAoi;
+          }
+
           let recStart = aoiSegments.startTime[stimulus.currentlySelected][i]; //start pos of svg rectangle
-          str += "<rect height='20' data-sid='" + i + "' fill='" +  aoiCategories.colors[aoiSegments.AOIid[stimulus.currentlySelected][i]] + "' class='a" +  aoiSegments.AOIid[stimulus.currentlySelected][i] + "' x='" + (recStart / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%' width='" + ((aoiSegments.endTime[stimulus.currentlySelected][i] - recStart) / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%'></rect>";
+          str += "<rect height='20' data-sid='" + i + "' fill='" +  currentAoiFill + "' class='" +  currentAoiClass + "' x='" + (recStart / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%' width='" + ((aoiSegments.endTime[stimulus.currentlySelected][i] - recStart) / participants.sessionDuration[stimulus.currentlySelected][k]) * 100 + "%'></rect>";
       }
       str += "</svg>";
     } else {
@@ -362,7 +534,9 @@ function paintAbsoluteBars() {
     yLabInnerStr += "<div>" + participants.names[k] + "</div>";
   }
 
-  str += "</svg></div>";
+  let defs = "<defs>" + gradientComponent + "</defs>";
+
+  str += defs + "</svg></div>";
   let labsstr = "<div id='chylabs'>";
   //add y main labels component
   labsstr += yLabInnerStr;
@@ -429,7 +603,8 @@ function handler(event) {
   function adjustPOPUP(id) {
     const rectBoundingBox = rect.getBoundingClientRect();
     const startTime = aoiSegments.startTime[stimulus.currentlySelected][id];
-    popup.innerHTML = "<span>Participant: "+ participants.names[participants.highestAOISegmentId[stimulus.currentlySelected].findIndex(x=>x>=id)] +"</span><span>AOI: "+aoiCategories.names[stimulus.currentlySelected][aoiSegments.AOIid[stimulus.currentlySelected][id]]+"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+aoiSegments.endTime[stimulus.currentlySelected][id].toFixed(1) +" ms</span><span>Duration: "+(aoiSegments.endTime[stimulus.currentlySelected][id] - startTime).toFixed(1) +" ms</span>";
+    const aoi = getAoiName(aoiSegments.AOIid[stimulus.currentlySelected][id]);
+    popup.innerHTML = "<span>Participant: "+ participants.names[participants.highestAOISegmentId[stimulus.currentlySelected].findIndex(x=>x>=id)] +"</span><span>AOI: "+ aoi +"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+aoiSegments.endTime[stimulus.currentlySelected][id].toFixed(1) +" ms</span><span>Duration: "+(aoiSegments.endTime[stimulus.currentlySelected][id] - startTime).toFixed(1) +" ms</span>";
     popup.style.top = window.scrollY + rectBoundingBox.bottom + "px";
     let xPosition = event.pageX;
     if (event.pageX + 155 > window.scrollX + document.body.clientWidth) {
@@ -437,7 +612,12 @@ function handler(event) {
     }
     popup.style.left = xPosition + "px";
   }
-};
+}
+
+function getAoiName(aoiId) {
+  let aoiArray = aoiId.split("_").map(x=>aoiCategories.names[stimulus.currentlySelected][x]);
+  return aoiArray.join(", ")
+}
 
 function getPrettyBreakStep(numberToBreak, numberOfSteps = 10) {
   let res = numberToBreak/numberOfSteps;
@@ -471,7 +651,6 @@ function handleRelative() {
   let barwrap = document.getElementsByClassName('barwrap'), xAxes = document.querySelectorAll('.x-gr line');
   let isToRelative = false, maxDur = participants.maxDuration[stimulus.currentlySelected], from, to, xComponentHtml;
   const absoluteSteps = getSteps(maxDur);
-  maxDur = participants.maxDuration[stimulus.currentlySelected];
 
   if (!timelineSwitch.classList.contains('activebtn3')) {
     isToRelative = true;
@@ -486,23 +665,27 @@ function handleRelative() {
 
   maxDur = absoluteSteps.numberOfSteps*absoluteSteps.step;
 
+  let k = 0;
   for (var i = 0; i < barwrap.length; i++) {
-    const absoluteLength = (participants.sessionDuration[stimulus.currentlySelected][i]/maxDur)*100;
-    let animateTag = barwrap[i].getElementsByTagName('animate')[0];
-    if (isToRelative) {
-      to = 100;
-      from = absoluteLength
-    } else {
-      from = 100;
-      to = absoluteLength
-    }
-      from += "%";
-      to += "%";
+    const participantId = barwrap[i].dataset.pid;
+    const absoluteLength = (participants.sessionDuration[stimulus.currentlySelected][participantId]/maxDur)*100;
 
-      barwrap[i].setAttribute('width', to); //because of the export function
-      animateTag.setAttribute('from', from);
-      animateTag.setAttribute('to', to);
-      animateTag.beginElement();
+      let animateTag = barwrap[i].getElementsByTagName('animate')[0];
+      if (isToRelative) {
+        to = 100;
+        from = absoluteLength
+      } else {
+        from = 100;
+        to = absoluteLength
+      }
+        from += "%";
+        to += "%";
+
+        barwrap[i].setAttribute('width', to); //because of the export function
+        animateTag.setAttribute('from', from);
+        animateTag.setAttribute('to', to);
+        animateTag.beginElement();
+
   }
 
   document.getElementById('chxcomponent').innerHTML = xComponentHtml;
