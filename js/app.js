@@ -694,15 +694,7 @@ function printDataCanvas() {
   }
 }
 
-
 //export plot
-
-
-// function getStartTime(index) {
-//   if (participants.highestAOISegmentId.includes(index-1) || index-1 < 0) { return 0 }
-//   return aoiSegments.endTime[index-1]
-// }
-
 
 function zoomScarf() {
 
