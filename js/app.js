@@ -99,8 +99,7 @@ function preprocess_TXT(fr) {
   if (spl[0].includes("RecordingTime [ms]")) {
     // Static Raw data (SMI)
     if (spl[0].includes("AOI Name Right")) {
-      spl.pop() //přizpůsobit, aby toto nebylo nutné
-      process_SMI_Raw_Static(spl.map(x=>x.split('\t')));
+      process_SMI_Raw_Static(spl);
     }
   } else if (spl[0].includes("Event Start Trial Time [ms]")	&& spl[0].includes("Event End Trial Time [ms]")) {
     // Event Statistics SMI
@@ -127,11 +126,11 @@ function processFinalData() {
         participants.aoiSegmentIDStart[stimulusId][k] = null;
         endSegment = null
       } else if (!endSegment) {
-          for (var e = 2; !endSegment && e < stimulusStarts.length + 1; e++) {
+          for (var e = 2; !endSegment && e < stimulusStarts.length + 2; e++) {
             if (k < stimulusStarts.length - 1) {
               endSegment = stimulusStarts[k+e] - 1;
             } else {
-              endSegment = aoiSegments.endTime[stimulusId].length - 1; //tohle je ok
+              endSegment = aoiSegments.endTime[stimulusId].length - 1;
             }
           }
       }
@@ -351,79 +350,51 @@ function processSMIevent(data) {
 
 }
 
-function process_SMI_Raw_Static(spl) {
-  let isNewSegment = true;
-  let baseTime = 0;
-  let lastEndTime = 0;
-  let lastStimulus = 0;
-  let segmentAOIix = -1;
-  let iterateTo = spl.length-1 //skip last one (different processing on last row)
-  let col = getColumnsPositions(spl[0]);
+function process_SMI_Raw_Static(data) {
+  const DELIMITER = "\t";
+  let baseTime;
+  let lastStartTime;
+  let lastStimulus;
+  let lastParticipant;
+  let lastAoi;
+  let currentTime;
+  let currentRow;
+  let backupTime;
+  let previousSegment;
+  let isThereOpenSegment = false;
+  let col = getColumnsPositions(data[0].split(DELIMITER));
 
   //from 1 to skip header
-  for (var i = 1; i < iterateTo; i++) {
-    if (isNewSegment) {
-      firstRow(i);
-    }
-    if (spl[i][col.stimulus] !== lastStimulus) {
-      firstStimulusRow(i);
-    }
-    if (spl[i][col.participant] !== spl[i+1][col.participant] || spl[i][col.stimulus] !== spl[i+1][col.stimulus]) {
-      lastParticipantRow(i);
-    }
-    else if (spl[i][col.aoi] !== spl[i+1][col.aoi]) {
-      lastAOIRow(i);
-    }
-  }
-  //last row of array
-  if (isNewSegment) { firstRow(iterateTo) }
-  lastParticipantRow(iterateTo);
+  for (var i = 1; i < data.length; i++) {
+    currentRow = data[i].split(DELIMITER);
+    if (currentRow[col.participant] !== lastParticipant || currentRow[col.stimulus] !== lastStimulus || currentRow[col.aoi] !== lastAoi) {
 
-  function firstRow(x) {
-    baseTime = spl[x][col.time];
-    lastEndTime = 0;
-    isNewSegment = false;
-  }
+      currentTime = currentRow[col.time];
+      if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant) {
+        currentTime = backupTime;
+      }
 
-  function firstStimulusRow(x) {
-    const indexOfCurrentStimulus = stimulus.names.indexOf(spl[i][col.stimulus]);
-    if (indexOfCurrentStimulus === -1) {
-      //this stimulus doesn't exist (index is -1)
-      aoiCategories.names.push([]);
-      pushNewArraysToMainData();
+      if (isThereOpenSegment) {
+        let previousSegment = {
+        start: lastStartTime - baseTime,
+        end: currentTime - baseTime,
+        stimulus: lastStimulus,
+        participant: lastParticipant,
+        isAoiPrepared: false,
+        aoi: lastAoi};
+        isThereOpenSegment = false;
+        testArr.push(previousSegment);
+        processRowObject(previousSegment)
+      }
 
-      stimulus.names.push(spl[i][col.stimulus]);
-      stimulus.currentlySelected = stimulus.names.length - 1;
-
-      lastStimulus = spl[i][col.stimulus];
-      segmentAOIix = -1;
-    } else {
-      lastStimulus = spl[i][col.stimulus];
-      segmentAOIix = aoiSegments.AOIid[indexOfCurrentStimulus].length - 1;
-      stimulus.currentlySelected = indexOfCurrentStimulus;
+      //open new segment
+      lastStartTime = currentRow[col.time];
+      lastAoi = currentRow[col.aoi];
+      isThereOpenSegment = true;
+      if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentRow[col.time]}
+      if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentRow[col.time] }
     }
-  }
-
-  function lastParticipantRow(x) {
-    lastAOIRow(x);
-    isNewSegment = true;
-    participants.highestAOISegmentId[stimulus.currentlySelected].push(segmentAOIix);
-    if (!participants.names.includes(spl[x][col.participant])) {
-      participants.names.push(spl[x][col.participant]);
-    }
-    participants.sessionDuration[stimulus.currentlySelected].push(spl[x][col.time]-baseTime);
-  }
-  function lastAOIRow(x) {
-    segmentAOIix++;
-    const newEndTime = spl[x][col.time]-baseTime
-    if (!aoiCategories.names[stimulus.currentlySelected].includes(spl[x][col.aoi])) {
-      aoiCategories.names[stimulus.currentlySelected].push(spl[x][col.aoi]);
-    }
-    aoiSegments.AOIid[stimulus.currentlySelected].push(aoiCategories.names[stimulus.currentlySelected].indexOf(spl[x][col.aoi]));
-    aoiSegments.endTime[stimulus.currentlySelected].push(newEndTime);
-    aoiSegments.startTime[stimulus.currentlySelected].push(lastEndTime);
-    //aoiSegments.isFixation[stimulus.currentlySelected].push();
-    lastEndTime = newEndTime;
+    backupTime = currentRow[col.time]
   }
 
   function getColumnsPositions(header) {
@@ -434,6 +405,7 @@ function process_SMI_Raw_Static(spl) {
     if (aoi === undefined) {aoi = header.indexOf("AOI Name Left")}
     return {time, stimulus, participant, aoi}
   }
+  processFinalData();
   processParticipantsMaxDurations();
   printSequenceChart();
 }
