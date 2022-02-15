@@ -5,7 +5,7 @@
   --c-d1: #000000e6;
   --c-d2: #000000e6;
   --c-d3: #000000b3;
-  --c-red: #d24235;
+  --c-red: #cd1404;
   --c-red2: #cd14042b;
 }
 
@@ -84,7 +84,7 @@ input[type="file"] {
     box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
     padding: 10px 16px;
     cursor: pointer;
-    color: var(--c-l1);
+    color: var(--c-l3);
     font-weight: bold;
     background: var(--c-red);
     border-radius: 5px;
@@ -107,7 +107,7 @@ input[type="file"] {
 
 .btn4 {
   font-weight: 900;
-  background: white
+  background: var(--c-l3)
 }
 
 .deactivated {
@@ -117,11 +117,11 @@ input[type="file"] {
 
 .btn3-relative  {
   color: #585858;
-  background: white;
+  background: var(--c-l3);
 }
 
 .btn3-absolute{
-  color: white;
+  color: var(--c-l3);
   background: var(--c-red);
 }
 
@@ -132,13 +132,13 @@ input[type="file"] {
 }
 
 .activebtn3 > .btn3-relative {
-  color: white;
+  color: var(--c-l3);
   background: var(--c-red);
 }
 
 .activebtn3 > .btn3-absolute {
   color: #585858;
-  background: white;
+  background: var(--c-l3);
 }
 
 

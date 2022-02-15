@@ -773,9 +773,16 @@ function getDownloadedScarfPlot() {
 
   //prepare canvas
   let canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  //set display size
+  canvas.style.width = width+"px";
+  canvas.style.height = height+"px";
+  //set resolution size
+  let scale = 2;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
   const ctx = canvas.getContext("2d");
+  //adjust coordinates to resolution size
+  ctx.scale(scale, scale);
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -789,7 +796,8 @@ function getDownloadedScarfPlot() {
     }
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(chartAreaImg, 0, 0, width, height);
-    finalImage = canvas.toDataURL('image/' + type);
+    // document.body.appendChild(canvas);
+    let finalImage = canvas.toDataURL('image/' + type);
     triggerDownload(finalImage, 'test.' + type);
   };
 
