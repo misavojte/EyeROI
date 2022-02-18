@@ -145,7 +145,7 @@ function processFinalData() {
 
 function processRowObject(rowObject) {
   let indexOfStimulus = stimulus.names.indexOf(rowObject.stimulus);
-  if (indexOfStimulus === -1) {
+  if (!~indexOfStimulus) {
     //stimulus not yet saved - let's fix it!
     indexOfStimulus = stimulus.names.length;
     stimulus.names.push(rowObject.stimulus);
@@ -153,7 +153,7 @@ function processRowObject(rowObject) {
     pushNewArraysToMainData()
   }
   let indexOfParticipant = participants.names.indexOf(rowObject.participant);
-  if (indexOfParticipant === -1) {
+  if (!~indexOfParticipant) {
     //participant not yet saved - let's fix it!
     indexOfParticipant = participants.names.length;
     participants.names.push(rowObject.participant);
@@ -162,7 +162,7 @@ function processRowObject(rowObject) {
     //process AOI
     let aoiCatsNames = aoiCategories.names[indexOfStimulus];
     let aoiIndex = aoiCatsNames.indexOf(rowObject.aoi);
-    if (aoiIndex === -1) {
+    if (!~aoiIndex) {
       aoiCatsNames.push(rowObject.aoi);
       aoiIndex = aoiCatsNames.indexOf(rowObject.aoi);
     }
@@ -170,8 +170,8 @@ function processRowObject(rowObject) {
   }
 
   const previousSegmentInStimulusStart = aoiSegments.startTime[indexOfStimulus][aoiSegments.startTime[indexOfStimulus].length-1];
-  // console.log(previousSegmentInStimulusStart + ", " + rowObject.start);
-  const isNewParticipant = !(rowObject.start > previousSegmentInStimulusStart); //musí být číslo
+
+  const isNewParticipant = !(rowObject.start > previousSegmentInStimulusStart); // !(false) if undefined
   if (isNewParticipant) {
     let start = aoiSegments.startTime[indexOfStimulus].length;
     participants.aoiSegmentIDStart[indexOfStimulus][indexOfParticipant] = start;
@@ -402,7 +402,7 @@ function process_SMI_Raw_Static(data) {
     const stimulus = header.indexOf("Stimulus");
     const participant = header.indexOf("Participant");
     let aoi = header.indexOf("AOI Name Right");
-    if (aoi === undefined) {aoi = header.indexOf("AOI Name Left")}
+    if (!~aoi) {aoi = header.indexOf("AOI Name Left")}
     return {time, stimulus, participant, aoi}
   }
   processFinalData();
