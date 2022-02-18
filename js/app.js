@@ -421,14 +421,14 @@ function printSequenceChart() {
     }
     return '<option value="'+index+'" '+selected+'>'+item+'</option>';}).join('')+'</select>';
   let inner = '<h3 class="cardtitle">Sequence chart (Scarf plot)</h3>';
-  inner += '<div class="btnholder">'+select+'<div class="btn3 torelative"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div>'+zoomInIcon+zoomOutIcon+downloadIcon+'</div>';
+  inner += '<div class="btnholder">'+select+'<div id="SPtoRelative" class="btn3"><div class="btn3-absolute">Absolute timeline</div><div class="btn3-relative">Relative timeline</div></div>'+zoomInIcon+zoomOutIcon+downloadIcon+'</div>';
   inner += '<div class="chartwrap">';
   inner += paintAbsoluteBars();
   inner += '</div>';
   document.getElementById('chartsec').innerHTML = inner;
   document.body.onmouseover = handler;
   //document.getElementById('charea').onmouseleave = handler2;
-  document.getElementsByClassName('torelative')[0].onclick = handleRelative;
+  document.getElementById('SPtoRelative').onclick = handleRelative;
   document.getElementById('zoomInScarf').onclick = zoomScarf;
   document.getElementById('zoomOutScarf').onclick = zoomScarf;
 }
@@ -619,7 +619,8 @@ function getSteps(numberToBreak) {
 
 //other event handlers
 function handleRelative() {
-  const timelineSwitch = document.getElementsByClassName('torelative')[0], yPos = participants.names.length*30;
+  const timelineSwitch = document.getElementById('SPtoRelative');
+  const yPos = participants.names.length*30;
   let barwrap = document.getElementsByClassName('barwrap'), xAxes = document.querySelectorAll('.x-gr line');
   let isToRelative = false, maxDur = participants.maxDuration[stimulus.currentlySelected], from, to, xComponentHtml;
   const absoluteSteps = getSteps(maxDur);
@@ -866,6 +867,7 @@ function getDownloadedScarfPlot() {
 
 function handleStimulusChange(selectElement) {
   stimulus.currentlySelected = selectElement.value;
+  document.getElementById('SPtoRelative').classList.remove("activebtn3");
   document.getElementsByClassName('chartwrap')[0].innerHTML = paintAbsoluteBars();
 }
 
