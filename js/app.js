@@ -3,36 +3,16 @@
 var aoiSegments;
 var aoiCategories;
 var participants;
-var stimulus
+var stimulus;
 var popup;
 
-var testArr = [];
+//var testArr = [];
+
+let worker = new Worker('js/worker.js');
 
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
 document.getElementById('start-demo').addEventListener('click',startDemo,false);
 
-function initDataObjects() {
-  aoiSegments = {
-    startTime: [],
-    endTime: [],
-    AOIid: []
-  };
-  aoiCategories = {
-    names: [],
-    colors: ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"]//cartocolor
-  };
-  participants = {
-    sessionDuration: [],
-    maxDuration: [],
-    names: [],
-    highestAOISegmentId: [],
-    aoiSegmentIDStart: [],
-  };
-  stimulus = {
-    currentlySelected: 0,
-    names: []
-  }
-}
 
 function pushNewArraysToMainData() {
   participants.sessionDuration.push([]);
@@ -68,45 +48,51 @@ function startDemo() {
 }
 
 function onFileUploadChange(e) {
+console.time("File loaded");
 const file = e.target.files[0];
 if (file) {
+
   const filesuffix = file.name.split('.').pop();
 
-  initDataObjects(); //for eventual re-uploading of different data file
+  //initDataObjects(); //for eventual re-uploading of different data file
   printDataCanvas();
   // printNewAniOutput('h3', 'anl', 1, 'Input eye-tracking data');
   // printNewAniOutput('div', 'metricfield', 1, ('<span>File:</span><span>' + file.name + " (" + file.size/1000 + " kB)</span>"));
 
     if (filesuffix === "txt" || filesuffix === "tsv") {
-      let fr = new FileReader();
-      fr.onload = function() {
-        preprocess_TXT(fr.result);
-      }
-      fr.readAsText(file);
+      processDataAsStream(file.stream());
+      //file.text().then(x=>preprocess_TXT(x));
     }
 }
 }
 
   //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
 
-function preprocess_TXT(fr) {
-  //let colDelimiters = ['\t',',',';'];
+worker.onmessage = (event) => {
+  console.timeEnd("File processed and parsed");
+  worker.postMessage("init"); //null vals
+  participants = event.data[0];
+  aoiCategories = event.data[2];
+  stimulus = event.data[1];
+  aoiSegments = event.data[3];
+  processFinalData();
+  processParticipantsMaxDurations();
+  printSequenceChart();
+}
 
-  //find column delimiter
-  //let colDelimiter = colDelimiters.find(item => firstRows[0].split(item).length === firstRows[2].split(item).length && firstRows[0].split(item).length > 1);
-
-  let spl = fr.split('\r\n');
-  if (spl[0].includes("RecordingTime [ms]")) {
-    // Static Raw data (SMI)
-    if (spl[0].includes("AOI Name Right")) {
-      process_SMI_Raw_Static(spl);
+function processDataAsStream(readableStream) {
+  const reader = readableStream.getReader();
+  const pump = reader => reader.read()
+  .then(({ value, done }) => {
+    //last chunk? end this
+    if (done) {
+      worker.postMessage("getEyeTrackingData");
+      return
     }
-  } else if (spl[0].includes("Event Start Trial Time [ms]")	&& spl[0].includes("Event End Trial Time [ms]")) {
-    // Event Statistics SMI
-    processSMIevent(spl);
-  } else if (spl[0].includes("Recording timestamp")) {
-    processTobiiRaw(spl);
-  }
+    worker.postMessage(value,[value.buffer]);
+    return pump(reader)
+  })
+  return pump(reader)
 }
 
 function processFinalData() {
@@ -115,9 +101,9 @@ function processFinalData() {
   let highestTime = [];
 
   for (var stimulusId = 0; stimulusId < stimulus.names.length; stimulusId++) {
+    let stimulusStarts = participants.aoiSegmentIDStart[stimulusId];
     endSegmentIds.push([]);
     highestTime.push([]);
-    let stimulusStarts = participants.aoiSegmentIDStart[stimulusId];
     for (var k = 0; k < stimulusStarts.length; k++) {
       //potenciální problém, pokud jen jedna sekce??
       let endSegment = stimulusStarts[k+1] - 1;
@@ -126,7 +112,7 @@ function processFinalData() {
         participants.aoiSegmentIDStart[stimulusId][k] = null;
         endSegment = null
       } else if (!endSegment) {
-          for (var e = 2; !endSegment && e < stimulusStarts.length + 2; e++) {
+          for (var e = 2; !endSegment && e - 2 < stimulusStarts.length; e++) {
             if (k < stimulusStarts.length - 1) {
               endSegment = stimulusStarts[k+e] - 1;
             } else {
@@ -134,280 +120,12 @@ function processFinalData() {
             }
           }
       }
-      //jsemzoufala.push(endSegment)
       endSegmentIds[stimulusId].push(endSegment);
-      highestTime[stimulusId].push(aoiSegments.endTime[stimulusId][endSegment])
+      highestTime[stimulusId].push(aoiSegments.endTime[stimulusId][endSegment]);
     }
   }
   participants.highestAOISegmentId = endSegmentIds;
   participants.sessionDuration = highestTime
-}
-
-function processRowObject(rowObject) {
-  let indexOfStimulus = stimulus.names.indexOf(rowObject.stimulus);
-  if (!~indexOfStimulus) {
-    //stimulus not yet saved - let's fix it!
-    indexOfStimulus = stimulus.names.length;
-    stimulus.names.push(rowObject.stimulus);
-    aoiCategories.names.push([]);
-    pushNewArraysToMainData()
-  }
-  let indexOfParticipant = participants.names.indexOf(rowObject.participant);
-  if (!~indexOfParticipant) {
-    //participant not yet saved - let's fix it!
-    indexOfParticipant = participants.names.length;
-    participants.names.push(rowObject.participant);
-  }
-  if (!rowObject.isAoiPrepared) {
-    //process AOI
-    let aoiCatsNames = aoiCategories.names[indexOfStimulus];
-    let aoiIndex = aoiCatsNames.indexOf(rowObject.aoi);
-    if (!~aoiIndex) {
-      aoiCatsNames.push(rowObject.aoi);
-      aoiIndex = aoiCatsNames.indexOf(rowObject.aoi);
-    }
-    rowObject.aoi = aoiIndex+"";
-  }
-
-  const previousSegmentInStimulusStart = aoiSegments.startTime[indexOfStimulus][aoiSegments.startTime[indexOfStimulus].length-1];
-
-  const isNewParticipant = !(rowObject.start > previousSegmentInStimulusStart); // !(false) if undefined
-  if (isNewParticipant) {
-    let start = aoiSegments.startTime[indexOfStimulus].length;
-    participants.aoiSegmentIDStart[indexOfStimulus][indexOfParticipant] = start;
-  }
-
-  aoiSegments.startTime[indexOfStimulus].push(rowObject.start);
-  aoiSegments.endTime[indexOfStimulus].push(rowObject.end);
-  aoiSegments.AOIid[indexOfStimulus].push(rowObject.aoi);
-
-}
-
-function processTobiiRaw(data, delimiter = "\t") {
-  console.time("TobiiRaw");
-  let col = getColumnsPositions(data[0]); //fun also adding data to stimulus and aoiCategories
-  let currentRow;
-  let baseTime;
-  let lastParticipant;
-  let lastStimulus;
-  let lastAoiColumns;
-  let lastStartTime;
-  let lastEndTime;
-  let currentTime;
-  let backupTime;
-  let currentAoiColumns;
-  let currentAoiColumnsIndexes;
-  let isThereOpenSegment = false;
-
-  for (var i = 1; i < data.length; i++) {
-      currentRow = data[i].split(delimiter);
-      if (stimulus.names.includes(currentRow[col.stimulus]) || isThereOpenSegment) {
-
-        currentAoiColumnsIndexes = col.aoi[stimulus.names.indexOf(currentRow[col.stimulus])];
-        if (currentAoiColumnsIndexes) {
-          currentAoiColumns = currentAoiColumnsIndexes.map(x=>currentRow[x]).join("");
-        } else {
-          currentAoiColumns = undefined;
-        };
-
-
-        if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant || currentAoiColumns !== lastAoiColumns) {
-
-              currentTime = currentRow[col.time];
-              if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant) {
-                //!stimulus.names.includes(currentRow[col.stimulus])
-                //pokud mimo, tak pro sichr vezme backup!!
-                currentTime = backupTime;
-              }
-              //uložit předcházející start time segmentu - pokud tu je
-              if (isThereOpenSegment) {
-
-                let previousSegment = {
-                start: lastStartTime - baseTime,
-                end: currentTime - baseTime,
-                stimulus: lastStimulus,
-                participant: lastParticipant,
-                isAoiPrepared: true,
-                aoi: getAoiIndexes(lastAoiColumns)};
-                testArr.push(previousSegment);
-                processRowObject(previousSegment);
-                isThereOpenSegment = false;
-              }
-
-
-              if (stimulus.names.includes(currentRow[col.stimulus])) {
-                //nyní lze mít nový lastStartTime
-                lastStartTime = currentTime;
-                lastAoiColumns = currentAoiColumns;
-                isThereOpenSegment = true;
-
-                if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentTime }
-                if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentTime }
-              }
-            }
-      }
-      //důležité!!!!
-      backupTime = currentRow[col.time];
-  }
-
-  console.timeEnd("TobiiRaw");
-  processFinalData();
-  processParticipantsMaxDurations();
-  printSequenceChart();
-
-  function getAoiIndexes(stringOfBinaries) {
-    let indexesArray = [];
-    let stringResult = "";
-    for (var i = 0; i < stringOfBinaries.length; i++) {
-      if (stringOfBinaries[i] === "1") {indexesArray.push(i)}
-    }
-    stringResult = indexesArray.join("_");
-    if (stringResult === "") {
-      //no AOI hitted
-      stringResult = stringOfBinaries.length + "";
-      if (!aoiCategories.names[stimulus.names.indexOf(lastStimulus)].includes("None")) {
-        aoiCategories.names[stimulus.names.indexOf(lastStimulus)].push("None")
-      }
-    }
-    return (stringResult)
-  }
-
-  function getColumnsPositions(header) {
-    console.time("TobiiRawHeader");
-    header = header.split(delimiter);
-    const columnPositions = {time: header.indexOf("Recording timestamp"),
-                            stimulus: header.indexOf("Presented Stimulus name"),
-                            participant: header.indexOf("Participant name"),
-                            category: header.indexOf("Eye movement type"),
-                            aoi: []};
-
-    //format of Tobii AOI columns is: "AOI hit [#NAME_OF_STIMULUS - #NAME_OF_AOI_CATEGORY]"
-    const aoiColumns = header.filter((x)=>(x.startsWith("AOI hit [")));
-    const uniqueStimulusNames = [...new Set(aoiColumns.map(x => x.replace(/AOI hit \[|\s-.*?\]/g, "")).sort())];
-    stimulus.names = uniqueStimulusNames;
-
-    for (var i = 0; i < uniqueStimulusNames.length; i++) {
-      const currentStimulusAoiColumns = aoiColumns.filter((x)=>(x.startsWith("AOI hit ["+uniqueStimulusNames[i])));
-      const positionOfFirstColumn = header.indexOf(currentStimulusAoiColumns[0]);
-      let aoiNames = [];
-      let aoiPositions = [];
-      currentStimulusAoiColumns.forEach((item, i) => {
-        aoiNames.push(item.replace(/A.*?- |\]/g, ""));
-        aoiPositions.push(i + positionOfFirstColumn)
-      });
-      columnPositions.aoi.push(aoiPositions);
-
-      aoiCategories.names.push(aoiNames);
-      pushNewArraysToMainData();
-    }
-    console.timeEnd("TobiiRawHeader");
-    return columnPositions
-  }
-}
-
-function processSMIevent(data) {
-  const DELIMITER = "\t";
-  let col = getColumnsPositions(data[0]);
-  let currentRow;
-  let lastStartTime;
-
-  for (var i = 1; i < data.length; i++) {
-    currentRow = data[i].split(DELIMITER);
-
-    if (currentRow[col.start] !== lastStartTime && currentRow[col.start] !== undefined) {
-      //SMI Event statistics has usually redundant (doubled) data
-      //write previous segment
-      let previousSegment = {
-      start: Number(currentRow[col.start]),
-      end: Number(currentRow[col.end]),
-      stimulus: currentRow[col.stimulus],
-      participant: currentRow[col.participant],
-      isAoiPrepared: false,
-      aoi: currentRow[col.aoi]};
-      testArr.push(previousSegment);
-      lastStartTime = currentRow[col.start];
-      processRowObject(previousSegment);
-    }
-
-    // if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentTime }
-    // if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentTime }
-
-  }
-
-  processFinalData();
-  processParticipantsMaxDurations();
-  printSequenceChart();
-
-  function getColumnsPositions(header) {
-    header = header.split(DELIMITER);
-    const start = header.indexOf("Event Start Trial Time [ms]");
-    const end = header.indexOf("Event End Trial Time [ms]");
-    const stimulus = header.indexOf("Stimulus");
-    const participant = header.indexOf("Participant");
-    const aoi = header.indexOf("AOI Name");
-    return {start, end, stimulus, participant, aoi}
-  }
-
-}
-
-function process_SMI_Raw_Static(data) {
-  const DELIMITER = "\t";
-  let baseTime;
-  let lastStartTime;
-  let lastStimulus;
-  let lastParticipant;
-  let lastAoi;
-  let currentTime;
-  let currentRow;
-  let backupTime;
-  let previousSegment;
-  let isThereOpenSegment = false;
-  let col = getColumnsPositions(data[0].split(DELIMITER));
-
-  //from 1 to skip header
-  for (var i = 1; i < data.length; i++) {
-    currentRow = data[i].split(DELIMITER);
-    if (currentRow[col.participant] !== lastParticipant || currentRow[col.stimulus] !== lastStimulus || currentRow[col.aoi] !== lastAoi) {
-
-      currentTime = currentRow[col.time];
-      if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant) {
-        currentTime = backupTime;
-      }
-
-      if (isThereOpenSegment) {
-        let previousSegment = {
-        start: lastStartTime - baseTime,
-        end: currentTime - baseTime,
-        stimulus: lastStimulus,
-        participant: lastParticipant,
-        isAoiPrepared: false,
-        aoi: lastAoi};
-        isThereOpenSegment = false;
-        testArr.push(previousSegment);
-        processRowObject(previousSegment)
-      }
-
-      //open new segment
-      lastStartTime = currentRow[col.time];
-      lastAoi = currentRow[col.aoi];
-      isThereOpenSegment = true;
-      if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentRow[col.time]}
-      if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentRow[col.time] }
-    }
-    backupTime = currentRow[col.time]
-  }
-
-  function getColumnsPositions(header) {
-    const time = header.indexOf("RecordingTime [ms]");
-    const stimulus = header.indexOf("Stimulus");
-    const participant = header.indexOf("Participant");
-    let aoi = header.indexOf("AOI Name Right");
-    if (!~aoi) {aoi = header.indexOf("AOI Name Left")}
-    return {time, stimulus, participant, aoi}
-  }
-  processFinalData();
-  processParticipantsMaxDurations();
-  printSequenceChart();
 }
 
 function printSequenceChart() {
@@ -425,7 +143,9 @@ function printSequenceChart() {
   inner += '<div class="chartwrap">';
   inner += paintAbsoluteBars();
   inner += '</div>';
+  document.getElementById('loader-wrap').remove();
   document.getElementById('chartsec').innerHTML = inner;
+  document.getElementById('chartsec').style.display = '';
   document.body.onmouseover = handler;
   //document.getElementById('charea').onmouseleave = handler2;
   document.getElementById('SPtoRelative').onclick = handleRelative;
@@ -455,7 +175,7 @@ function paintAbsoluteBars() {
   //Y axes will be rendered under the sequence bars
   // let tanchor = "text-anchor='start'";
   const breakX = getSteps(maxDuration);
-  maxDuration = breakX.step * breakX.numberOfSteps;
+  maxDuration = breakX.step * breakX.numberOfSteps; //x axis length
 
   str += "<g id='chxcomponent'>" + getXComponentOfScarf(xaxispos, breakX) + "</g>";
 
@@ -683,11 +403,12 @@ function getXComponentOfScarf(yPosition, breakX) {
 // print new html elements functions
 function printDataCanvas() {
   let dcanvas = document.getElementById('analysis');
-  const html = "<h2 class='anl anim'>Your analysis and visualization</h2><section class='anh'></section><section id='chartsec' class='anh'></section>"
+  const html = "<h2 class='anl'>Your analysis and visualization</h2><div id='loader-wrap'><div class='bars-7'></div><div>Processing your precious data</div></div><section id='chartsec' style='display:none;' class='anh anim'></section>"
   if (dcanvas) {
     dcanvas.innerHTML = html
   } else {
     dcanvas = document.createElement("section");
+    dcanvas.classList = "anim";
     dcanvas.id = "analysis";
     dcanvas.innerHTML = html;
     document.querySelector('main')

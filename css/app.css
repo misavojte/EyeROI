@@ -128,7 +128,7 @@ input[type="file"] {
 .btn3-absolute,.btn3-relative, .btn4 {
   padding: 5px 10px;
   transition: all .3s ease-in-out;
-  height: 20px
+  height: 22px
 }
 
 .activebtn3 > .btn3-relative {
@@ -197,7 +197,21 @@ input[type="file"] {
   animation: in-an .4s ease-in-out
 }
 
-
+#loader-wrap {
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+  width: 100%;
+  max-width: 900px;
+  margin: 12px auto;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
 
 #chartsec {
   padding: 16px;
@@ -357,6 +371,27 @@ select {
   border-bottom: 1px solid var(--c-d3);
   font-size: 1.1rem;
   color: var(--c-d3)
+}
+
+.bars-7 {
+  width: 40px;
+  height: 40px;
+  --c: linear-gradient(currentColor 0 0);
+  background:
+    var(--c) 0    0,
+    var(--c) 50%  50%,
+    var(--c) 100% 100%;
+  background-repeat: no-repeat;
+  animation:
+    b7 1s infinite alternate;
+}
+
+@keyframes b7 {
+ 0%,
+ 10%  {background-size:9px  100%}
+ 50%  {background-size:9px  9px}
+ 90%,
+ 100% {background-size:100% 9px}
 }
 
 @keyframes in-an {
