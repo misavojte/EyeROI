@@ -403,12 +403,12 @@ function getXComponentOfScarf(yPosition, breakX) {
 // print new html elements functions
 function printDataCanvas() {
   let dcanvas = document.getElementById('analysis');
-  const html = "<h2 class='anl'>Your analysis and visualization</h2><div id='loader-wrap'><div class='bars-7'></div><div>Processing your precious data</div></div><section id='chartsec' style='display:none;' class='anh anim'></section>"
+  const html = "<h2 class='main-section'>Your analysis and visualization</h2><div id='loader-wrap'><div class='bars-7'></div><div>Processing your precious data</div></div><div id='workplace'><section id='chartsec' style='display:none;' class='anh anim'></section></div>"
   if (dcanvas) {
     dcanvas.innerHTML = html
   } else {
     dcanvas = document.createElement("section");
-    dcanvas.classList = "anim main-section";
+    dcanvas.classList = "anim";
     dcanvas.id = "analysis";
     dcanvas.innerHTML = html;
     document.querySelector('main')

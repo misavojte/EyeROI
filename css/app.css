@@ -56,6 +56,7 @@ footer {
 }
 header {
   display: flex;
+  align-items: center;
 }
 
 .border-b {
@@ -93,7 +94,7 @@ main {
 #firstsec {
   display: grid;
   grid-template-columns: 55% 1fr;
-  gap: 12px;
+  gap: 24px;
   margin: auto;
     height: 100vh;
     max-height: 550px;
@@ -104,6 +105,8 @@ main {
   max-width: 1280px;
   box-sizing: border-box;
   padding: 0 40px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #intro-pic {
@@ -113,7 +116,26 @@ main {
 }
 
 #analysis, #about {
-  margin: 65px auto 0;
+  margin: auto;
+}
+
+#workplace {
+  display: flex;
+  position: relative;
+  justify-content: center;
+  width: calc(100% - 80px);
+  margin: auto;
+  margin-bottom: 120px;
+  padding: 80px 16px;
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 25%);
+  background-color: var(--c-l1);
+  background-image:
+    linear-gradient(rgba(255,255,255,.5) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(255,255,255,.5) 2px, transparent 2px),
+    linear-gradient(rgba(255,255,255,.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.28) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  background-position: -2px -2px, -2px -2px, -1px -1px, -1px -1px;
 }
 
 input[type="file"] {
@@ -262,7 +284,7 @@ input[type="file"] {
   box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
   width: 100%;
   max-width: 900px;
-  margin: 12px auto;
+  background: var(--c-l2);
   box-sizing: border-box;
 }
 
@@ -289,6 +311,10 @@ input[type="file"] {
   width: 100%;
   overflow: auto;
   padding: 0 1px
+}
+
+.a-icon {
+  fill: var(--c-d3);
 }
 
 #charea {
