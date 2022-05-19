@@ -25,7 +25,7 @@ body {
 
 h1 {
   font-size: 3rem;
-  margin: 1rem;
+  margin: 1rem 0;
 }
 
 .intro-text {
@@ -73,18 +73,22 @@ main {
 }
 
 #firstsec {
-  max-width: 700px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
+  max-width: 1200px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 55% 1fr;
+  gap: 12px;
+  padding: 60px 8px;
+}
+
+#intro-pic {
+  width: 100%;
+  height: auto;
+  transform: rotate(-3deg);
 }
 
 #firstsec, #analysis, #about {
   margin: 65px auto 0;
-}
-
-#about {
-  text-align: center
 }
 
 input[type="file"] {
@@ -334,6 +338,20 @@ select {
     font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
 
 }
+
+.about-grid {
+  display: flex;
+  margin-top: 12px;
+    gap: 24px;
+}
+
+.grid-item {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 300;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+}
+
 .exterModal {
   position: fixed;
   top: 0;
