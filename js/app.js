@@ -408,7 +408,7 @@ function printDataCanvas() {
     dcanvas.innerHTML = html
   } else {
     dcanvas = document.createElement("section");
-    dcanvas.classList = "anim";
+    dcanvas.classList = "anim main-section";
     dcanvas.id = "analysis";
     dcanvas.innerHTML = html;
     document.querySelector('main')

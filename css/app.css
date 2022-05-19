@@ -28,24 +28,42 @@ h1 {
   margin: 1rem 0;
 }
 
+h2 {
+  font-size: 1.85rem;
+}
+
+h3 {
+  font-size: 1.2rem;
+}
+
 .intro-text {
   font-size: 1.5rem;
   font-weight: 200;
 }
 
-footer, header, main {
-  padding: 0px clamp(1.375rem, 1.2rem + 0.89vw, 2rem);
+footer, header {
+  width: calc(100% - 60px);
+  max-width: 1380px;
+  margin: 0 30px;
+  padding: 12px 0;
+  display: flex;
+  justify-content: space-between;
 }
 
+footer {
+  margin-top: 60px;
 
+}
 header {
   display: flex;
 }
 
-.header-wrapper {
-  padding: 12px;
-  width: 100%;
+.border-b {
   border-bottom: #5858583a 1px solid;
+}
+
+.border-t {
+  border-top: #5858583a 1px solid;
 }
 
 main {
@@ -73,12 +91,19 @@ main {
 }
 
 #firstsec {
-  max-width: 1200px;
-  box-sizing: border-box;
   display: grid;
   grid-template-columns: 55% 1fr;
   gap: 12px;
-  padding: 60px 8px;
+  margin: auto;
+    height: 100vh;
+    max-height: 550px;
+    align-items: center;
+}
+
+.main-section {
+  max-width: 1280px;
+  box-sizing: border-box;
+  padding: 0 40px;
 }
 
 #intro-pic {
@@ -87,7 +112,7 @@ main {
   transform: rotate(-3deg);
 }
 
-#firstsec, #analysis, #about {
+#analysis, #about {
   margin: 65px auto 0;
 }
 
@@ -348,8 +373,14 @@ select {
 .grid-item {
   padding: 12px 24px;
   border-radius: 12px;
-  font-weight: 300;
+  font-weight: 200;
+  font-size: 1.1rem;
   box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+}
+
+footer p {
+  font-weight: 200;
+  margin: 0;
 }
 
 .exterModal {

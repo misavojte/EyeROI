@@ -11,16 +11,14 @@
     
   </head>
   <body>
-    <header>
-      <div class="header-wrapper">
+    <header class="border-b">
         <a id="gohome" href="./">
           <img id="logo" width="35" height="35" src="./favicon.svg" alt="Logo">
           <span id="sitetitle" href="./">EyeToolbox</span>
         </a>
-      </div>
     </header>
     <main>
-      <section id="firstsec">
+      <section class="main-section" id="firstsec">
         <div class="intro holder">
           <h1 class="">Analyse AOIs</br>of eye-tracking data</h1>
           <p class="intro-text">Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. Multiplatform. For free.</p>
@@ -36,15 +34,15 @@
         </div>
         <img id="intro-pic" src="screen2.png" alt="">
       </section>
-      <section id="about">
-        <h2 class="anl">About EyeToolbox</h2>
+      <section class="main-section" id="about">
+        <h2>About EyeToolbox</h2>
         <div class="about-grid">
           <section class="grid-item">
-            <h3>Compatible in all modern browsers</h3>
-            <p>Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. For free.</p>
+            <h3>It is a work in progress</h3>
+            <p>Keep in mind the tool is in an active development. Many features are missing and others could be buggy. If there is anything you want to be added, contact me at mail@vojtechovska.com</p>
           </section>
           <section class="grid-item">
-            <h3>Compatible in all modern browsers</h3>
+            <h3>Works with Tobii and SMI outputs</h3>
             <p>Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. For free.</p>
           </section>
           <section class="grid-item">
@@ -54,8 +52,15 @@
         </div>
       </section>
     </main>
-    <footer>
-      <p>EyeToolbox, version 0.0.1</p>
+    <footer class="border-t">
+      <div>
+        <p>EyeToolbox, version 0.0.1</p>
+        <p>Coded & designed by <a href="https://vojtechovska.com">Michaela Vojtěchovská</a></p>
+        <p>Idea by Stanislav Popelka</p>
+      </div>
+      <a rel="no-follow" href="https://geoinformatics.upol.cz/">
+        <img loading="lazy" id="dpt-logo" src="img/logos/dpt.png" alt="" width="300" height="64.43">
+      </a>
     </footer>
     <script defer src="js/app.js"></script>
   </body>
