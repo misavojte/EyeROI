@@ -24,22 +24,28 @@ body {
 }
 
 h1 {
-  font-size: 3.5rem;
+  font-size: 3rem;
   margin: 1rem;
 }
 
 .intro-text {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 200;
 }
 
 footer, header, main {
-  padding: 6px clamp(1.375rem, 1.2rem + 0.89vw, 2rem);
+  padding: 0px clamp(1.375rem, 1.2rem + 0.89vw, 2rem);
 }
 
 
 header {
   display: flex;
+}
+
+.header-wrapper {
+  padding: 12px;
+  width: 100%;
+  border-bottom: #5858583a 1px solid;
 }
 
 main {
