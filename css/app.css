@@ -212,19 +212,20 @@ svg.btn4 {
 
 .btn3-absolute,.btn3-relative, .btn4 {
   padding: 5px 10px;
-  transition: all .3s ease-in-out;
+  /* transition: all .3s ease-in-out; */
   height: auto;
   font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
 }
 
 #aoiPopAttributesTable {
   display: grid;
+  gap: 4px;
   width: 100%;
 }
 
 .gr-line {
   display: grid;
-  grid-template-columns: 1fr 145px 50px 50px;
+  grid-template-columns: 1fr 145px 50px 30px 30px;
   gap: 7px;
   text-align: left;
   align-items: center;
@@ -242,8 +243,8 @@ svg.btn4 {
 }
 
 
-.btn:hover, .btn:focus, .btn2:hover, .btn2:focus, .btn3-relative:hover, .btn3-absolute:hover, .btn4:hover {
-  opacity: 0.8
+.btn:hover, .btn:focus, .btn2:hover, .btn2:focus, .btn3-relative:hover, .btn3-absolute:hover, .btn4:hover, .svg-icon:hover {
+  opacity: 0.8;
 }
 
 .cont1 {
@@ -359,7 +360,7 @@ svg.btn4 {
   display: block;
 }
 
-#charea rect:hover {
+.sg:hover {
   fill-opacity: 0.75;
   stroke:black
 }
@@ -415,11 +416,18 @@ svg.btn4 {
 }
 
 select {
+  background: url(data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0Ljk1IDEwIj48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2ZmZjt9LmNscy0ye2ZpbGw6IzQ0NDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPmFycm93czwvdGl0bGU+PHJlY3QgY2xhc3M9ImNscy0xIiB3aWR0aD0iNC45NSIgaGVpZ2h0PSIxMCIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSIxLjQxIDQuNjcgMi40OCAzLjE4IDMuNTQgNC42NyAxLjQxIDQuNjciLz48cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iMy41NCA1LjMzIDIuNDggNi44MiAxLjQxIDUuMzMgMy41NCA1LjMzIi8+PC9zdmc+) no-repeat 95% 50%;
+	-moz-appearance: none; 
+	-webkit-appearance: none; 
+	appearance: none;
+  background-color: var(--c-l3);
   padding: 5px 10px;
+  height: 30px;
+  box-sizing: border-box;
+  border: 1px solid rgb(0 0 0 / 10%);
     cursor: pointer;
     border-radius: 5px;
     box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
-    border: none;
     width: 160px;
     color: #585858;
     font-size: .9rem;
@@ -492,10 +500,7 @@ footer p {
 
 #SPwidthInput {
   width: 75px;
-  border: none;
   text-align: center;
-  background: none;
-  border-bottom: 1px solid var(--c-d3);
   font-size: 1.1rem;
   color: var(--c-d3)
 }
@@ -511,6 +516,51 @@ footer p {
   background-repeat: no-repeat;
   animation:
     b7 1s infinite alternate;
+}
+
+.svg-icon {
+  height: 30px;
+  width: 30px;
+  background: var(--c-l3);
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(0 0 0 / 10%);
+  box-sizing: border-box;
+}
+
+input {
+  height: 30px;
+  background: var(--c-l3);
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+  border: 1px solid rgb(0 0 0 / 10%);
+  box-sizing: border-box;
+}
+
+input[type="text"] {
+  padding: 5px;
+}
+
+input[type="color"] {
+  padding: 5px;
+  margin: 0;
+  width: 50px;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 3px;
+  border: none;
+}
+
+input[type="color"]::-webkit-color-swatch {
+	padding: 0;
+  border-radius: 3px;
+  border: none;
 }
 
 @media only screen and (max-width: 1100px) {

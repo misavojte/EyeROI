@@ -70,6 +70,7 @@ const decoder = new TextDecoder();
 
 self.onmessage = (event) => {
   if (event.data === "getEyeTrackingData") {
+    if (isThereOpenSegment) {closeAoiSegment()}
     self.postMessage([participants, stimuli, aoiCategories, aoiSegments]); return
   } else if (event.data === "init") {
     initMainVals();
@@ -193,52 +194,49 @@ function rawSMI(currentRow) {
 }
 
 function tobiiRaw(currentRow) {
-  if (stimuli.names.includes(currentRow[col.stimulus]) || isThereOpenSegment) {
+  let currentAoiColumns;
+  const TIME_MODIFIER = 0.001; //he?
 
-    let currentAoiColumnsIndexes = col.aoi[stimuli.names.indexOf(currentRow[col.stimulus])];
-    let currentAoiColumns = undefined;
-    if (currentAoiColumnsIndexes) {
-      currentAoiColumns = currentAoiColumnsIndexes.map(x=>currentRow[x]).join("");
+  //if there's a Stimulus from header in "Presented Stimulus" column, then process
+  if (stimuli.names.includes(currentRow[col.stimulus])) {
+
+    //get stimulus index
+    const currentStimulusIndex = stimuli.names.indexOf(currentRow[col.stimulus]);
+
+    //get column positions of aois
+    const currentAoiColumnsIndexes = col.aoi[currentStimulusIndex];
+
+    //get joined binary values of those aoi columns
+    //if AOI_1: TRUE and AOI_2: FALSE, then "01"
+    currentAoiColumns = currentAoiColumnsIndexes.map(x=>currentRow[x]).join("");
+
+    //if stimulus or participant changed
+    if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant) {
+      if (isThereOpenSegment) {closeAoiSegment()}
+      baseTime = currentRow[col.time]*TIME_MODIFIER;
+      openAoiSegment()
+    } 
+    // or if just aoi changed
+    else if (currentAoiColumns !== lastAoi) {
+      if (isThereOpenSegment) {closeAoiSegment()}
+      openAoiSegment()
     }
 
-
-    if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant || currentAoiColumns !== lastAoi) {
-
-          currentTime = currentRow[col.time];
-          if (currentRow[col.stimulus] !== lastStimulus || currentRow[col.participant] !== lastParticipant) {
-            //!stimuli.names.includes(currentRow[col.stimulus])
-            //pokud mimo, tak pro sichr vezme backup!!
-            currentTime = backupTime;
-          }
-          //uložit předcházející start time segmentu - pokud tu je
-          if (isThereOpenSegment) {
-
-            processRowObject(lastStartTime - baseTime, //start
-                            currentTime - baseTime, //end
-                            lastStimulus, //stimulus
-                            lastParticipant, //participant
-                            getAoiIndexes(lastAoi), //aoi
-                            true); //isAoiPrepared
-            isThereOpenSegment = false;
-          }
-
-
-          if (stimuli.names.includes(currentRow[col.stimulus])) {
-            //nyní lze mít nový lastStartTime
-            lastStartTime = currentTime;
-            lastAoi = currentAoiColumns;
-            isThereOpenSegment = true;
-
-            if (currentRow[col.stimulus] !== lastStimulus) { lastStimulus = currentRow[col.stimulus]; baseTime = currentTime }
-            if (currentRow[col.participant] !== lastParticipant) { lastParticipant = currentRow[col.participant]; baseTime = currentTime }
-          }
-        }
+    //save time
+    currentTime = currentRow[col.time]*TIME_MODIFIER
   }
-  //důležité!!!!
-  backupTime = currentRow[col.time];
+
+  function openAoiSegment(params) {
+    lastParticipant = currentRow[col.participant];
+    lastStimulus = currentRow[col.stimulus];
+    lastStartTime = currentRow[col.time]*TIME_MODIFIER;
+    lastAoi = currentAoiColumns;
+    isThereOpenSegment = true;
+  }
 }
 
 function processRowObject(start,end,stimulus,participant,aoi,isAoiPrepared) {
+
   let indexOfStimulus = stimuli.names.indexOf(stimulus);
   if (!~indexOfStimulus) {
     //stimulus not yet saved - let's fix it!
@@ -302,4 +300,14 @@ function getAoiIndexes(stringOfBinaries) {
     }
   }
   return (stringResult)
+}
+
+function closeAoiSegment() {
+  processRowObject(lastStartTime - baseTime, //start
+                  currentTime - baseTime, //end
+                  lastStimulus, //stimulus
+                  lastParticipant, //participant
+                  getAoiIndexes(lastAoi), //aoi
+                  true); //isAoiPrepared
+  isThereOpenSegment = false;
 }
