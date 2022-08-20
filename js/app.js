@@ -539,8 +539,6 @@ const file = e.target.files[0];
 if (file) {
 
   const filesuffix = file.name.split('.').pop();
-
-  printDataCanvas();
     if (filesuffix === "json") {
       file.text().then(x=>{
         data = new EyeTrackingData(JSON.parse(x));
@@ -548,7 +546,9 @@ if (file) {
       );
     }
     if (filesuffix === "txt" || filesuffix === "tsv") {
-      processDataAsStream(file.stream());
+      if(processDataAsStream(file.stream())){
+        printDataCanvas();
+      }
     }
 }
 }
@@ -605,7 +605,14 @@ worker.onmessage = (event) => {
 
 function processDataAsStream(stream) {
   console.time("File parsed in:");
-  worker.postMessage(stream, [stream]);
+  //transfer ReadableStream to worker
+  try {
+    worker.postMessage(stream, [stream]);
+    return true
+  } catch (error) {
+    alert("Error! Your browser does not support a vital function for parsing the data (ReadableStream is not supported as a transferable object). Try Chrome, Edge, Opera or updating your current browser.")
+    return false
+  }
 }
 
 function newAoiVisInfo(event) {
