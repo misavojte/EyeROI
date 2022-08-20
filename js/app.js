@@ -526,8 +526,9 @@ function startDemo() {
     printDataCanvas();
     return response.json()
   })
-  .then(data => {
-    data = new EyeTrackingData(data);
+  .then(x => {
+    console.log(x);
+    data = new EyeTrackingData(x);
     printSequenceChart(0);
   })
 }
@@ -541,9 +542,8 @@ if (file) {
 
   printDataCanvas();
     if (filesuffix === "json") {
-      console.log("a");
       file.text().then(x=>{
-        appData = JSON.parse(x);
+        data = new EyeTrackingData(JSON.parse(x));
         printSequenceChart(0)}
       );
     }
@@ -1090,7 +1090,7 @@ function triggerDownload(downloadContent,downloadName) {
 
 function getDownloadedWorkplace() {
   const fileName = "ETWorkplace_"+(new Date).toISOString().slice(0,19)+".json";
-  triggerDownload(URL.createObjectURL(new Blob([JSON.stringify(appData)],{type:'application/json'})),fileName)
+  triggerDownload(URL.createObjectURL(new Blob([JSON.stringify(data.main)],{type:'application/json'})),fileName)
 }
 
 function handleStimulusChange(selectElement) {
