@@ -818,7 +818,7 @@ function getXComponentOfScarf(yPosition, breakX) {
 // print new html elements functions
 function printDataCanvas() {
   let dcanvas = document.getElementById('analysis');
-  const html = "<h2 class='main-section ana-title'>Your analysis and visualization</h2><div class='btnholder left-align main-section'><button onclick='showWorkplaceExporter()' class='btn4'>Save workplace</button></div><div id='loader-wrap'><div class='bars-7'></div><div>Processing your precious data</div></div><div id='workplace'><section id='chartsec' style='display:none;' class='anh anim'></section></div>"
+  const html = "<h2 class='main-section ana-title'>Your analysis and visualization</h2><div class='btnholder left-align main-section'><button onclick='showWorkplaceExporter()' class='btn4'>Save workplace</button></div><div id='workplace'><div id='loader-wrap'><div class='bars-7'></div><div>Processing your precious data</div></div><section id='chartsec' style='display:none;' class='anh anim'></section></div>"
   if (dcanvas) {
     dcanvas.innerHTML = html
   } else {

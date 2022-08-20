@@ -315,6 +315,7 @@ svg.btn4 {
 }
 
 #loader-wrap {
+  background: var(--c-l2);
   padding: 16px;
   border-radius: 12px;
   box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
@@ -534,8 +535,8 @@ footer p {
 }
 
 .bars-7 {
-  width: 40px;
-  height: 40px;
+  width: 20px;
+  height: 20px;
   --c: linear-gradient(currentColor 0 0);
   background:
     var(--c) 0    0,
@@ -717,10 +718,10 @@ input[type="color"]::-webkit-color-swatch {
 
 @keyframes b7 {
  0%,
- 10%  {background-size:9px  100%}
- 50%  {background-size:9px  9px}
+ 10%  {background-size:20%  100%}
+ 50%  {background-size:20%  20%}
  90%,
- 100% {background-size:100% 9px}
+ 100% {background-size:100% 20%}
 }
 
 @keyframes in-an {
