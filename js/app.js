@@ -1,11 +1,508 @@
 "use strict";
 
+
 var popup;
+
+var data;
+var testRS;
+
+class EyeTrackingData {
+  constructor(data) {
+    this.defColors = ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"];
+    this.main = data;
+  }
+
+  //stimulus getters
+
+  getStimulInfo(stimulusIndex) {
+    //get saved data in main
+    let response = this.getStimulName(stimulusIndex);
+    response.highestEndTime = this.getStimulHighestEndTime(stimulusIndex);
+    return response
+  }
+
+  getStimulName(stimulusIndex) {
+    const stimulArr = this.main.stimuli.data[stimulusIndex];
+    const originalName = stimulArr[0];
+    const displayedName = stimulArr[1] || stimulArr[0];
+    return {originalName, displayedName}
+  }
+
+  getStimulHighestEndTime(stimulusIndex) {
+    //determine which end time from the last segments of each participant has highest value
+    //important for determing length of X axis in plots
+    const segmentsInfo = this.main.segments[stimulusIndex];
+    let max = 0;
+    for (let participantIndex = 0; participantIndex < segmentsInfo.length; participantIndex++) {
+      if (segmentsInfo[participantIndex]) {
+        const lastSegmentIndex = segmentsInfo[participantIndex].length - 1;
+        if (lastSegmentIndex >= 0) {
+          const lastSegmentEndTime = segmentsInfo[participantIndex][lastSegmentIndex][1];
+          if (lastSegmentEndTime > max) { max = lastSegmentEndTime }
+        }
+      }
+    }
+    return max
+  }
+
+  // particip getter
+
+  getParticName(particIndex) {
+    const particArr = this.main.participants.data[particIndex];
+    const originalName = particArr[0];
+    const displayedName = particArr[1] || particArr[0];
+    return {originalName, displayedName}
+  }
+
+  getParticEndTime(stimulusIndex, particIndex) {
+    const segmentsInfo = this.main.segments[stimulusIndex][particIndex];
+    if (!segmentsInfo) {return 0}
+    if (segmentsInfo.length < 1) {return 0}
+    return segmentsInfo[segmentsInfo.length-1][1]
+  }
+
+  // aois getters
+  getAoiInfo(stimulusId, aoiId) {
+    const aoiArr = this.main.aois.data[stimulusId][aoiId];
+    const originalName = aoiArr[0];
+    const displayedName = aoiArr[1] || originalName;
+    const color = aoiArr[2] || this.defColors[aoiId];
+    return {originalName, displayedName, color}
+  }
+
+  getCatName(categoryId) {
+    const catArr = this.main.categories.data[categoryId];
+    const originalName = catArr[0];
+    const displayedName = catArr[1] || catArr[0];
+    return {originalName, displayedName}
+  }
+
+  //seg getter
+  getSegmentInfo(stimulusId, participantId, segmentId) {
+    const segmentArr = this.main.segments[stimulusId][participantId][segmentId];
+    const start = segmentArr[0];
+    const end = segmentArr[1];
+    const category = segmentArr[2];
+    const aoi = segmentArr.slice(3);
+    return {start, end, category, aoi}
+  }
+
+  getNoOfSegments(stimulusId, participantId) {
+    return this.main.segments[stimulusId][participantId].length
+  }
+
+  getAoiOrderArray(stimulusIndex) {
+    let order = this.main.aois.orderVector[stimulusIndex];
+    //if does not exist in data, return array of sequence from 0 to N
+    //N ... number of aoi categories for given stimulus
+    if (!order) {
+      const noOfAois = this.main.aois.data[stimulusIndex].length;
+      return [...Array(noOfAois).keys()]
+    }
+    return order
+  }
+
+  get noOfParticipants() {
+    return this.main.participants.data.length
+  }
+
+  setAoiColor(stimulusId, aoiId, color) {
+    if (this.getAoiInfo(stimulusId, aoiId).color != color) {
+      this.main.aois.data[stimulusId][aoiId][2] = color;
+    }
+  }
+  setAoiName(stimulusId, aoiId, name) {
+    if (this.getAoiInfo(stimulusId, aoiId).displayedName != name) {
+      this.main.aois.data[stimulusId][aoiId][1] = name;
+    }
+  }
+  setAoiOrder(stimulusId, order) {
+    if (this.getAoiOrderArray(stimulusId) != order) {
+      this.main.aois.orderVector[stimulusId] = order;
+    }
+  }
+
+  addAoiVis(stimulusId, aoiName, visibilityArr) {
+    let aoiData = this.main.aois.data[stimulusId];
+    const aoiId = aoiData.findIndex(el => el[0] === aoiName);
+    if (aoiId > -1) {
+      aoiData[aoiId][3] = visibilityArr;
+      return true
+    }
+    return false
+  }
+}
+
+class ScarfPrinter {
+
+  constructor(stimulusId = 0, showAoiVisibility = false, aoiBarHeight = 20, participGap = 10) {
+
+    this.AOI_VISIBILITY_LINE_HEIGHT_AND_GAP = 5;
+
+    this.stimulusId = stimulusId;
+    this.aoiBarHeight = aoiBarHeight;
+    this.participGap = participGap;
+    this.spaceAboveRect = participGap/2;
+    this.showAoiVisibility = showAoiVisibility;
+    this.noOfAois = data.main.aois.data[stimulusId].length; //neučesané no
+
+    this.aoiOrderedArr = data.getAoiOrderArray(stimulusId);
+    this.participHeight = aoiBarHeight + participGap;
+    if (this.showAoiVisibility) {
+      this.participHeight += ((this.AOI_VISIBILITY_LINE_HEIGHT_AND_GAP+1) * this.noOfAois) + this.AOI_VISIBILITY_LINE_HEIGHT_AND_GAP;
+    }
+  
+    //Y position of X axis in pixels
+    this.noOfParticipants = data.noOfParticipants;
+    this.xaxispos = this.noOfParticipants * this.participHeight; //Y position of X axis
+  
+    //calculate steps for X axis (absolute)
+    this.stimulInfo = data.getStimulInfo(stimulusId);
+    this.breakX = getSteps(this.stimulInfo.highestEndTime);
+  }
+
+  get wholePlot() {
+    return `
+    <h3 class="cardtitle">Sequence chart (Scarf plot)</h3>
+    <div class="btnholder">
+      <select id="SPstimulus" onchange="handleStimulusChange(this)">
+        ${this.selectContent}
+      </select>
+      <div id="SPtoRelative" class="btn3" onclick='handleRelative(${this.stimulusId})'>
+        <div class="btn3-absolute">Absolute timeline</div>
+        <div class="btn3-relative">Relative timeline</div>
+      </div>
+        ${printSVGIcon("","id='zoomInScarf' onclick='zoomScarf(1)'",'<path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5z"/>')}
+        ${printSVGIcon("deactivated","id='zoomOutScarf' onclick='zoomScarf(0)'",'<path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/>')}
+        ${printSVGIcon("","onclick='showDownloadScarfPlotScreen("+this.stimulusId+")'",'<path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>')}
+        ${printSVGIcon("","onclick='showScarfSettings("+this.stimulusId+")'",'<path fill-rule="evenodd" d="M10.5 1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4H1.5a.5.5 0 0 1 0-1H10V1.5a.5.5 0 0 1 .5-.5ZM12 3.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Zm-6.5 2A.5.5 0 0 1 6 6v1.5h8.5a.5.5 0 0 1 0 1H6V10a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5ZM1 8a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 1 8Zm9.5 2a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V13H1.5a.5.5 0 0 1 0-1H10v-1.5a.5.5 0 0 1 .5-.5Zm1.5 2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Z"/>')}
+      </div>
+    <div class="chartwrap">
+      ${this.innerPlot}
+    </div>`;
+  }
+
+  get selectContent() {
+    const numberOfStimulu = data.main.stimuli.data.length;
+    let response = "";
+    for (let index = 0; index < numberOfStimulu; index++) {
+      const name = data.getStimulName(index).displayedName;
+      response += `<option value="${index}">${name}</option>`;
+    }
+    return response
+  }
+
+  get innerPlot() {
+    const particiComponents = this.particiComponents;
+    return `
+    <div class='chylabs' style='grid-auto-rows:${this.participHeight-this.participGap}px;gap:${this.participGap}px;margin-top:${this.participGap/2}px'>
+        ${particiComponents.labels}
+    </div>
+    <div class='charea-holder'>
+      <svg xmlns='http://www.w3.org/2000/svg' id='charea' data-stimulus='${this.stimulusId}' width='100%' height='${this.xaxispos + 20}'>
+        <animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>
+        <defs>
+          <pattern id='grid' width="${(this.breakX.step/(this.breakX.numberOfSteps * this.breakX.step))*100}%" height="${this.participHeight}" patternUnits="userSpaceOnUse">
+            <rect fill='none' width='100%' height='100%' stroke='#cbcbcb' stroke-width='1' />
+          </pattern>
+        </defs>
+        <rect fill='url(#grid)' stroke='#cbcbcb' stroke-width='1' width='100%' height='${this.xaxispos}' />
+        <svg y='${this.xaxispos+14}' id='chxcomponent' style='overflow:visible;font-size:12px'>
+          ${getXComponentOfScarf(this.xaxispos, this.breakX)}
+        </svg>
+        ${particiComponents.bars}
+      </svg>
+    </div>
+    <div id='chxlab'>
+      Elapsed time [ms]
+    </div>
+    <div class="chlegendwrap">
+      ${this.legendContent}
+    </div>`
+  }
+
+  get legendContent() {
+    const noOfAois = this.aoiOrderedArr.length;
+    let content = "";
+    for (var i = 0; i < noOfAois; i++) {
+      const currentAoiIndex = this.aoiOrderedArr[i];
+      const aoiInfo = data.getAoiInfo(this.stimulusId, currentAoiIndex);
+      content += `
+      <div class="legendItem a${currentAoiIndex}" data-aoi="${currentAoiIndex}">
+        <svg width="12" height="12">
+          <rect class="a${currentAoiIndex}" width="100%" height="100%" fill="${aoiInfo.color}"/>
+        </svg>
+        <div>
+          ${aoiInfo.displayedName}
+        </div>
+      </div>
+      `
+    }
+    //FOR NO AOI HIT
+    content += `
+    <div class="legendItem aN" data-aoi="N">
+      <svg width="12" height="12">
+          <rect class="aN" width="100%" height="100%" fill="#a6a6a6"/>
+      </svg>
+      <div>
+        No AOI hit
+      </div>
+    </div>
+    `
+    let result = `
+    <div ondblclick='showAOImod(${this.stimulusId})'>
+      <div class='chlegendtitle'>Fixations</div>
+      <div class='chlegend'>
+        ${content}
+      </div>
+    </div>
+    <div ondblclick=''>
+      <div class='chlegendtitle'>Other segment categories</div>
+      <div class='chlegend'>
+        ${this.otherCategoriesLegend}
+      </div>
+    </div>
+      `
+
+    if (this.showAoiVisibility) {
+      result += `
+      <div ondblclick=''>
+        <div class='chlegendtitle'>AOIs visible at the moment</div>
+        <div class='chlegend'>
+          ${this.aoisVisibilityLegend}
+        </div>
+      </div>
+      `
+    }
+
+    return result
+  }
+
+  get otherCategoriesLegend() {
+    let content = "";
+    content += `
+    <div class="legendItem ac1" data-aoi="c1">
+      <svg width="12" height="4">
+        <rect class="ac1" width="100%" height="100%" fill="#555555"/>
+      </svg>
+      <div>
+        Saccade
+      </div>
+    </div>
+    `
+    content += `
+    <div class="legendItem acN" data-aoi="cN">
+      <svg width="12" height="4">
+        <rect class="acN" width="100%" height="100%" fill="#bcbcbc"/>
+      </svg>
+      <div>
+        Blink / Unclassified
+      </div>
+    </div>
+    `
+    return content
+  }
+
+  get aoisVisibilityLegend() {
+    const noOfAois = this.aoiOrderedArr.length;
+    let content = "";
+    for (var i = 0; i < noOfAois; i++) {
+      const currentAoiIndex = this.aoiOrderedArr[i];
+      const aoiInfo = data.getAoiInfo(this.stimulusId, currentAoiIndex);
+      content += `
+      <div class="legendItem a${currentAoiIndex}" data-aoi="${currentAoiIndex}">
+        <svg width="12" height="12">
+          <line class="a${currentAoiIndex}" x1="0" y1="50%" x2="12" y2="50%" stroke="${aoiInfo.color}" stroke-width="6" stroke-dasharray="1"></line>
+        </svg>
+        <div>
+          ${aoiInfo.displayedName}
+        </div>
+      </div>
+      `
+    }
+    return content
+  }
+
+  get particiComponents() {
+    let ypos = -1 * this.participHeight;
+    let bars = "";
+    let labels = "";
+    const maximumXValue = this.breakX.numberOfSteps*this.breakX.step;
+
+    for (var k = 0; k < this.noOfParticipants; k++) {
+      
+      const sessionDuration = data.getParticEndTime(this.stimulusId, k);
+      const particName = data.getParticName(k).displayedName;
+
+      ypos += this.participHeight;
+
+      if (sessionDuration) {
+        const barWidth = ((sessionDuration/maximumXValue)*100);
+        bars += `
+        <svg class='barwrap' y='${ypos}' data-pid='${k}' height='${this.participHeight}' width='${barWidth}%'>
+          <animate attributeName='width' from='0%' to='${barWidth}%' dur='0.4s' fill='freeze'/>
+          ${this.getParticipantSegments(k, sessionDuration)}
+        </svg>
+        `;
+      } else {
+        console.log(`Participant ${particName} has no AOI segments in stimulus`);
+      }
+      //create inner HTML string for Y main labels component
+      //it will be inserted to SVG on the next lines
+      labels += `<div>${particName}</div>`;
+      
+    }
+    return {bars, labels}
+  }
+
+  getParticipantSegments(particId, particSessionDuration) {
+    const noOfSegments = data.getNoOfSegments(this.stimulusId, particId);
+    let segments = "";
+    if (this.showAoiVisibility) {
+      segments += this.getAoiVisibility(particSessionDuration);
+    }
+    for (let i = 0; i < noOfSegments; i++) {
+      segments += this.getSegment(particId, i, particSessionDuration)
+    }
+    return segments
+  }
+
+  getSegment(particId, segmentId, particSessionDuration) {
+
+    const segment = data.getSegmentInfo(this.stimulusId, particId, segmentId);
+    
+    //important values for positioning SVG element
+    const xOfSegment = (segment.start / particSessionDuration) * 100;
+    const widthOfSegment = ((segment.end - segment.start) / particSessionDuration) * 100;
+    
+    let htmlOfSegment = "";
+
+    if (segment.category === 0) {
+      //FIXATION
+      htmlOfSegment = this.getFixationSegment(segment.aoi, xOfSegment, widthOfSegment);
+    } else if (segment.category === 1) {
+      //SACCADE
+      htmlOfSegment = this.getSaccadeSegment(xOfSegment, widthOfSegment);
+    } else {
+      htmlOfSegment = this.getOtherSegment(xOfSegment, widthOfSegment);
+    }
+
+    return `<g class='sg' data-sid='${segmentId}'>${htmlOfSegment}</g>`
+  }
+
+  getFixationSegment(aois, xOfSegment, widthOfSegment) {
+    //NO AOI HIT IN FIXATION
+    if (aois.length === 0) {
+      return `
+      <rect class='aN' height='${this.aoiBarHeight}' fill='#bcbcbc' x='${xOfSegment}%' width='${widthOfSegment}%' y='${this.spaceAboveRect}'>
+      </rect>
+      `
+    }
+    //this is the segment allowing showing different AOIs
+    const heightOfAoiRect = this.aoiBarHeight/aois.length;
+    let yOfAoiRect = this.spaceAboveRect;
+    let result = "";
+    //going through all possible AOI categories in the selected stimulus
+    //to ensure AOIs are ordered as specified by order array
+    for (var aoiIndex = 0; aoiIndex < this.aoiOrderedArr.length; aoiIndex++) {
+      const aoiId = this.aoiOrderedArr[aoiIndex];
+      //coercing to string - otherwise would be always false!
+      if (aois.includes(aoiId)) {
+        const currentAoiFill = data.getAoiInfo(this.stimulusId,aoiId).color;
+        result += `
+        <rect class='a${aoiId}' height='${heightOfAoiRect}' fill='${currentAoiFill}' x='${xOfSegment}%' width='${widthOfSegment}%' y='${yOfAoiRect}'>
+        </rect>`;
+        yOfAoiRect += heightOfAoiRect;
+      }
+    }
+    return result
+  }
+
+  getSaccadeSegment(xOfSegment, widthOfSegment) {
+    const height = this.aoiBarHeight/10;
+    return `
+    <rect class='ac1' height='${height}' fill='#555555' x='${xOfSegment}%' width='${widthOfSegment}%' y='${this.spaceAboveRect+this.aoiBarHeight/2-height/2}'>
+    </rect>
+    `
+  }
+
+  getOtherSegment(xOfSegment, widthOfSegment) {
+    const height = this.aoiBarHeight/10;
+    return `
+    <rect class='acN' height='${height}' fill='#bcbcbc' x='${xOfSegment}%' width='${widthOfSegment}%' y='${this.spaceAboveRect+this.aoiBarHeight/2-height/2}'>
+    </rect>
+    `
+  }
+
+  getAoiVisibility(particSessionDuration) {
+    let yPositionOfLine = this.aoiBarHeight + this.AOI_VISIBILITY_LINE_HEIGHT_AND_GAP*2;
+    let component = "";
+
+    for (let aoiIndex = 0; aoiIndex < this.noOfAois; aoiIndex++) {
+      const aoiId = this.aoiOrderedArr[aoiIndex];
+      const currentAoiFill = data.getAoiInfo(this.stimulusId,aoiId).color;
+      const visibilityArr = data.main.aois.data[this.stimulusId][aoiId][3];
+      for (let k = 0; k < visibilityArr.length; k += 2) {
+        const start = (visibilityArr[k]/particSessionDuration)*100;
+        const end = (visibilityArr[k+1]/particSessionDuration)*100;
+        component += `<line class="a${aoiId}" x1="${start}%" y1="${yPositionOfLine}" x2="${end}%" y2="${yPositionOfLine}" stroke="${currentAoiFill}" stroke-width="${this.AOI_VISIBILITY_LINE_HEIGHT_AND_GAP}" stroke-dasharray="1"/>`;
+      }
+      yPositionOfLine += this.AOI_VISIBILITY_LINE_HEIGHT_AND_GAP + 1;
+    }
+    return `
+    <g>
+     ${component}
+    </g>
+    `
+  }
+
+}
+
+class AOIVisibilityReader {
+  constructor(xml, stimulusId) {
+    this.aoiNodes = xml.getElementsByTagName("DynamicAOI");
+    this.stimulusId = stimulusId;
+  }
+  addVisInfo() {
+    for (let i = 0; i < this.aoiNodes.length; i++) {
+      const aoiName = this.aoiNodes[i].querySelector("Name").innerHTML;
+      const aoiKeyFrames = this.aoiNodes[i].getElementsByTagName("KeyFrame");
+      const aoiVisibilityArr = this.processKeyFrames(aoiKeyFrames);
+      console.log(aoiName, aoiVisibilityArr);
+      data.addAoiVis(this.stimulusId, aoiName, aoiVisibilityArr);
+    }
+  }
+  processKeyFrames(keyFrames) {
+    let visibilityArr = [];
+    let isAoiCurrentlyVisible = false;
+    for (let i = 0; i < keyFrames.length; i++) {
+      const frame = keyFrames[i];
+      const visibility = frame.querySelector("Visible").innerHTML;
+      if (visibility === "true" && isAoiCurrentlyVisible === false) {
+        const timestamp = frame.querySelector("Timestamp").innerHTML/1000; //ms
+        visibilityArr.push(timestamp);
+        isAoiCurrentlyVisible = true;
+      }
+      if ((visibility === "false" && isAoiCurrentlyVisible === true)) {
+        const timestamp = frame.querySelector("Timestamp").innerHTML/1000; //ms
+        visibilityArr.push(timestamp);
+        isAoiCurrentlyVisible = false;
+      }
+      if ((visibility === "true" && i === keyFrames.length-1)) {
+        const timestamp = data.getStimulHighestEndTime(this.stimulusId);
+        visibilityArr.push(timestamp);
+        isAoiCurrentlyVisible = false;
+      }
+    }
+    return visibilityArr
+  }
+}
 
 
 // Functions for creating
 // new elements (their HTML)
 
+//SVG icons from bootstrap
 function printSVGIcon(className, attributeString, svgcontent) {
   return `
   <div class="svg-icon ${className}" ${attributeString}>
@@ -17,25 +514,11 @@ function printSVGIcon(className, attributeString, svgcontent) {
 }
 
 
-
-var appData = {};
-
-const defColors = ["#66c5cc","#f6cf71","#f89c74","#dcb0f2","#87c55f","#9eb9f3","#fe88b1","#c9db74","#8be0a4","#b497e7","#d3b484","#b3b3b3"];
-//var testArr = [];
-
 let worker = new Worker('js/worker.js');
 
 document.getElementById('file-upload').addEventListener('change',onFileUploadChange,false);
 document.getElementById('start-demo').addEventListener('click',startDemo,false);
 
-function processParticipantsMaxDurations() {
-  //get maximu length of session - used for SVG chart
-  for (var i = 0; i < appData.stimulus.names.length; i++) {
-    //filter out undefineds, nulls
-    const filteredDurs = appData.participants.sessionDuration[i].filter(x=>(x));
-    appData.participants.maxDuration[i] = Math.max(...filteredDurs);
-  }
-}
 
 function startDemo() {
   fetch("demodata.json")
@@ -44,8 +527,8 @@ function startDemo() {
     return response.json()
   })
   .then(data => {
-    appData = data;
-    printSequenceChart();
+    data = new EyeTrackingData(data);
+    printSequenceChart(0);
   })
 }
 
@@ -56,15 +539,12 @@ if (file) {
 
   const filesuffix = file.name.split('.').pop();
 
-  //initDataObjects(); //for eventual re-uploading of different data file
   printDataCanvas();
-  // printNewAniOutput('h3', 'anl', 1, 'Input eye-tracking data');
-  // printNewAniOutput('div', 'metricfield', 1, ('<span>File:</span><span>' + file.name + " (" + file.size/1000 + " kB)</span>"));
     if (filesuffix === "json") {
       console.log("a");
       file.text().then(x=>{
         appData = JSON.parse(x);
-        printSequenceChart()}
+        printSequenceChart(0)}
       );
     }
     if (filesuffix === "txt" || filesuffix === "tsv") {
@@ -76,250 +556,87 @@ if (file) {
   //console.log(spl.filter(function(value,index) {return value[2]=="P01";}));
 
 worker.onmessage = (event) => {
-  console.timeEnd("File processed and parsed");
-  worker.postMessage("init"); //null vals
-  appData.participants = event.data[0];
-  appData.aoiCategories = event.data[2];
-  appData.stimulus = event.data[1];
-  appData.aoiSegments = event.data[3];
-  processFinalData();
-  processParticipantsMaxDurations();
-  printSequenceChart();
+  console.timeEnd("File parsed in:");
+  data = new EyeTrackingData(event.data);
+  printSequenceChart(0);
 }
 
-function processDataAsStream(readableStream) {
-  const reader = readableStream.getReader();
-  const pump = reader => reader.read()
-  .then(({ value, done }) => {
-    //last chunk? end this
-    if (done) {
-      worker.postMessage("getEyeTrackingData");
-      return
-    }
-    worker.postMessage(value,[value.buffer]);
-    return pump(reader)
-  })
-  return pump(reader)
-}
+// function processDataAsStream(readableStream) {
+//   console.log(readableStream);
+//   const reader = readableStream.getReader();
+//   const pump = reader => reader.read()
+//   .then(({ value, done }) => {
+//     //last chunk? end this
+//     if (done) {
+//       worker.postMessage("getEyeTrackingData");
+//       return
+//     }
+//     worker.postMessage(value,[value.buffer]);
+//     return pump(reader)
+//   })
+//   return pump(reader)
+// }
 
-function processFinalData() {
-  //get last index of segments for participants
-  let endSegmentIds = [];
-  let highestTime = [];
+// function processDataAsStream(readableStream) {
+//     let control = 0;
+//     const reader = readableStream.pipeThrough(new TextDecoderStream()).getReader();
+//     const pump = reader => reader.read()
+//     .then(({ value, done }) => {
+//       control++
+//       //last chunk? end this
+//       if (done) {
+//         worker.postMessage("getEyeTrackingData");
+//         return
+//       }
+//       if (control > 100) {
+//         control = 0;
+//         setTimeout(() => {
+//           console.log("timeout");
+//           worker.postMessage(value);
+//           return pump(reader)
+//         }, 5000);
+//       } else {
+//         worker.postMessage(value);
+//       return pump(reader)
+//       }
+//     })
+//     return pump(reader)
+//   }
 
-  for (var stimulusId = 0; stimulusId < appData.stimulus.names.length; stimulusId++) {
-    let stimulusStarts = appData.participants.aoiSegmentIDStart[stimulusId];
-    endSegmentIds.push([]);
-    highestTime.push([]);
-    for (var k = 0; k < stimulusStarts.length; k++) {
-      //potenciální problém, pokud jen jedna sekce??
-      let endSegment = stimulusStarts[k+1] - 1;
-      if (stimulusStarts[k] === undefined) {
-        //remove empty spaces from array
-        appData.participants.aoiSegmentIDStart[stimulusId][k] = null;
-        endSegment = null
-      } else if (!endSegment) {
-          for (var e = 2; !endSegment && e - 2 < stimulusStarts.length; e++) {
-            if (k < stimulusStarts.length - 1) {
-              endSegment = stimulusStarts[k+e] - 1;
-            } else {
-              endSegment = appData.aoiSegments.endTime[stimulusId].length - 1;
-            }
-          }
-      }
-      endSegmentIds[stimulusId].push(endSegment);
-      highestTime[stimulusId].push(appData.aoiSegments.endTime[stimulusId][endSegment]);
-    }
-  }
-  appData.participants.highestAOISegmentId = endSegmentIds;
-  appData.participants.sessionDuration = highestTime
+function processDataAsStream(stream) {
+  console.time("File parsed in:");
+  worker.postMessage(stream, [stream]);
 }
 
 function newAoiVisInfo(event) {
   const file = event.target.files[0];
+  const stimulusId = event.target.dataset.stimulus;
   if (file) {
   const filesuffix = file.name.split('.').pop();
     if (filesuffix === "xml") {
       file.text().then(x=>{
         const parser = new DOMParser();
         const xml = parser.parseFromString(x, "application/xml");
-        console.log(xml);
+        new AOIVisibilityReader(xml, stimulusId).addVisInfo();
+        document.getElementById('chartsec').innerHTML = new ScarfPrinter(stimulusId,true).wholePlot;
       }
       );
     }
   }
 }
 
-function printSequenceChart() {
+function printSequenceChart(stimulusIndex) {
 
-  const inner = `
-  <h3 class="cardtitle">Sequence chart (Scarf plot)</h3>
-  <div class="btnholder">
-    <select id="SPstimulus" onchange="handleStimulusChange(this)">
-      ${getSelectContent()}
-    </select>
-    <div id="SPtoRelative" class="btn3">
-      <div class="btn3-absolute">Absolute timeline</div>
-      <div class="btn3-relative">Relative timeline</div>
-    </div>
-      ${printSVGIcon("","id='zoomInScarf'",'<path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5z"/>')}
-      ${printSVGIcon("deactivated","id='zoomOutScarf'",'<path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/>')}
-      ${printSVGIcon("","onclick='showDownloadScarfPlotScreen()'",'<path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>')}
-      ${printSVGIcon("","onclick='showScarfSettings()'",'<path fill-rule="evenodd" d="M10.5 1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4H1.5a.5.5 0 0 1 0-1H10V1.5a.5.5 0 0 1 .5-.5ZM12 3.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Zm-6.5 2A.5.5 0 0 1 6 6v1.5h8.5a.5.5 0 0 1 0 1H6V10a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5ZM1 8a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 1 8Zm9.5 2a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V13H1.5a.5.5 0 0 1 0-1H10v-1.5a.5.5 0 0 1 .5-.5Zm1.5 2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Z"/>')}
-    </div>
-  <div class="chartwrap">
-    ${paintAbsoluteBars()}
-  </div>`;
+  let printer = new ScarfPrinter(stimulusIndex);
+  //!!!!!
 
   document.getElementById('loader-wrap').remove();
-  document.getElementById('chartsec').innerHTML = inner;
+  document.getElementById('chartsec').innerHTML = printer.wholePlot;
   document.getElementById('chartsec').style.display = '';
   document.body.onmouseover = handler;
   //document.getElementById('charea').onmouseleave = handler2;
-  document.getElementById('SPtoRelative').onclick = handleRelative;
-  document.getElementById('zoomInScarf').onclick = zoomScarf;
-  document.getElementById('zoomOutScarf').onclick = zoomScarf;
 
-  function getSelectContent() {
-    return appData.stimulus.names.map((item, index) => {
-      let selected = '';
-      if (appData.stimulus.currentlySelected === index) {
-        selected = ' selected';
-      }
-      return `<option value="${index}"${selected}>${item}</option>`;
-    }).join('');
-  }
 }
-
-function paintAbsoluteBars(stimulus = 0, aoiBarHeight = 20, participGap = 10) {
-
-  const stimulusId = appData.stimulus.currentlySelected;
-  const aoiOrderedArr = getAoiOrderArray(stimulusId);
-  const participHeight = aoiBarHeight + participGap
-
-  let ypos = -1 * participHeight;
-
-  //Y position of X axis in pixels
-  const xaxispos = appData.participants.names.length * participHeight;
-
-  //calculate steps for X axis (absolute)
-  const maxDuration = appData.participants.maxDuration[appData.stimulus.currentlySelected];
-  const breakX = getSteps(maxDuration);
-
-  const participantsComponents = getParticipantsComponents();
-
-  return `
-  <div id='chylabs'>
-      ${participantsComponents.labels}
-    </div>
-  <div class='charea-holder'>
-    <svg xmlns='http://www.w3.org/2000/svg' id='charea' style='overflow:visible' width='100%' height='${xaxispos + 20}'>
-      <animate id='chareaAni' attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>
-      <g>
-        <line class='gr y-gr' stroke='#cbcbcb' stroke-width='1'  x1='0' x2='100%' y1='${xaxispos}' y2='${xaxispos}'></line>
-      </g>
-      <g id='chxcomponent'>
-        ${getXComponentOfScarf(xaxispos, breakX)}
-      </g>
-      ${participantsComponents.bars}
-    </svg>
-  </div>
-  <div id='chxlab'>
-    Elapsed time [ms]
-  </div>
-  <div id='chlegend' ondblclick='showAOImod()'>
-    ${getLegendContent()}
-  </div>
-  `;
-
-  function getLegendContent() {
-    let content = "";
-    for (var i = 0; i < aoiOrderedArr.length; i++) {
-      const currentAoiIndex = aoiOrderedArr[i];
-      const currentAoiColor = getAoiColor(appData.stimulus.currentlySelected, currentAoiIndex)
-      const currentName = appData.aoiCategories.names[appData.stimulus.currentlySelected][currentAoiIndex];
-      content += `
-      <div class="legendItem a${currentAoiIndex}" data-aoi="${currentAoiIndex}">
-        <div class="legendRect" style="background:${currentAoiColor}">
-        </div>
-        <div>
-          ${currentName}
-        </div>
-      </div>
-      `
-    }
-    return content
-  }
-
-  function getParticipantsComponents() {
-    let bars = "";
-    let labels = "";
-    const maximumXValue = breakX.numberOfSteps*breakX.step;
-
-    for (var k = 0; k < appData.participants.names.length; k++) {
-      
-      const segStart = appData.participants.aoiSegmentIDStart[appData.stimulus.currentlySelected][k];
-      const segEnd = appData.participants.highestAOISegmentId[appData.stimulus.currentlySelected][k];
-      const particName = appData.participants.names[k];
-      const stimulName = appData.stimulus.names[appData.stimulus.currentlySelected];
-
-      ypos += participHeight;
-      if (segEnd) {
-        const barWidth = ((appData.participants.sessionDuration[appData.stimulus.currentlySelected][k]/maximumXValue)*100);
-        bars += `
-        <svg class='barwrap' y='${ypos}' data-pid='${k}' width='${barWidth}%'>
-          <animate attributeName='width' from='0%' to='${barWidth}%' dur='0.4s' fill='freeze'/>
-          ${getSegments(segStart, segEnd, k)}
-        </svg>
-        `;
-      } else {
-        console.log(`Participant ${particName} has no AOI segments in stimulus ${stimulName}`);
-      }
-      //create inner HTML string for Y main labels component
-      //it will be inserted to SVG on the next lines
-      labels += `<div>${particName}</div>`;
-      
-    }
-    return {bars, labels}
-  
-
-    function getSegments(startAoiIndex, endAoiIndex, participantId) {
-      let segments = "";
-      for (var i = startAoiIndex; i < endAoiIndex+1; i++) { segments += getSegment(i, participantId) }
-      return segments
-    }
-
-    function getSegment(i, k) {
-      //create an array of AOI categories in the current segment
-      //usually there's only one, but there can be more (e.g., "0_4" means there are AOI categories with index 0 and 4)
-      const currentAoiArr = appData.aoiSegments.AOIid[appData.stimulus.currentlySelected][i].split("_");
-      const heightOfAoiRect = aoiBarHeight/currentAoiArr.length;
-
-      let yOfAoiRect = 0;
-      
-      //important values for positioning SVG element
-      const startTimeOfSegment = appData.aoiSegments.startTime[appData.stimulus.currentlySelected][i];
-      const xOfSegment = (startTimeOfSegment / appData.participants.sessionDuration[appData.stimulus.currentlySelected][k]) * 100;
-      const widthOfSegment = ((appData.aoiSegments.endTime[appData.stimulus.currentlySelected][i] - startTimeOfSegment) / appData.participants.sessionDuration[appData.stimulus.currentlySelected][k]) * 100;
-      
-      let htmlOfSegment = "";
-      
-      //going through all possible AOI categories in the selected stimulus
-      //to ensure AOIs are ordered as specified by order array
-      for (var aoiIndex = 0; aoiIndex < aoiOrderedArr.length; aoiIndex++) {
-        //coercing to string - otherwise would be always false!
-        if (currentAoiArr.includes(aoiOrderedArr[aoiIndex]+"")) {
-          const currentAoiFill = getAoiColor(appData.stimulus.currentlySelected, aoiOrderedArr[aoiIndex])
-          htmlOfSegment += "<rect class='a" + aoiOrderedArr[aoiIndex] + "' height='" + heightOfAoiRect + "' fill='" +  currentAoiFill + "' x='" + xOfSegment + "%' width='" + widthOfSegment + "%' y='" + yOfAoiRect + "'></rect>";
-          yOfAoiRect += heightOfAoiRect;
-        }
-      }
-
-      return `<g class='sg' data-sid='${i}'>${htmlOfSegment}</g>`
-    }
-  }
-}
-
 
 function handler(event) {
   const rect = event.target.closest('.sg');
@@ -329,17 +646,21 @@ function handler(event) {
   // matches the selector
   if (event.target.closest('#datatooltip')) {return};
   if (rect) {
+    const stimulusId = rect.parentElement.parentElement.dataset.stimulus;
+    const participantId = rect.parentElement.dataset.pid;
+    const segmentId = rect.dataset.sid;
+    const innerHTML = getTooltipInnerHtml(stimulusId, participantId, segmentId);
     // handle class event
     if (typeof popup !== 'undefined') {
       popup.style.display = 'none';
-      adjustPOPUP(rect.dataset.sid);
+      adjustPOPUP(innerHTML);
       popup.style.display = "";
     } else {
       // win = document.getElementsByClassName('chartwrap')[0];
       popup = document.createElement('div');
       popup.classList = 'popup';
       popup.id = 'datatooltip';
-      adjustPOPUP(rect.dataset.sid);
+      adjustPOPUP(innerHTML);
       document.body.appendChild(popup);
     }
     return
@@ -360,15 +681,13 @@ function handler(event) {
   function highlightAOIcategory() {
     const aoiId = legendItem.dataset.aoi;
     let styleElement = document.createElement('style');
-    styleElement.innerHTML = `rect{opacity:0.2}rect.a${aoiId}{opacity:1;stroke:#0000007d}`;
+    styleElement.innerHTML = `rect[class^='a']{opacity:0.2}rect.a${aoiId}{opacity:1;stroke:#0000007d}line[class^='a']{opacity:0.2}line.a${aoiId}{opacity:1;stroke-width:100%}`;
     document.getElementById('charea').append(styleElement);
   }
 
-  function adjustPOPUP(id) {
+  function adjustPOPUP(innerHTML) {
     const rectBoundingBox = rect.getBoundingClientRect();
-    const startTime = appData.aoiSegments.startTime[appData.stimulus.currentlySelected][id];
-    const aoi = getAoiName(appData.aoiSegments.AOIid[appData.stimulus.currentlySelected][id]);
-    popup.innerHTML = "<span>Participant: "+ appData.participants.names[appData.participants.highestAOISegmentId[appData.stimulus.currentlySelected].findIndex(x=>x>=id)] +"</span><span>AOI: "+ aoi +"</span><span>Start: "+startTime.toFixed(1) +" ms</span><span>End: "+appData.aoiSegments.endTime[appData.stimulus.currentlySelected][id].toFixed(1) +" ms</span><span>Duration: "+(appData.aoiSegments.endTime[appData.stimulus.currentlySelected][id] - startTime).toFixed(1) +" ms</span>";
+    popup.innerHTML = innerHTML;
     popup.style.top = window.scrollY + rectBoundingBox.bottom + "px";
     let xPosition = event.pageX;
     if (event.pageX + 155 > window.scrollX + document.body.clientWidth) {
@@ -378,9 +697,40 @@ function handler(event) {
   }
 }
 
-function getAoiName(aoiId) {
-  let aoiArray = aoiId.split("_").map(x=>appData.aoiCategories.names[appData.stimulus.currentlySelected][x]);
-  return aoiArray.join(", ")
+function getTooltipInnerHtml(stimulusId, participantId, segmentId) {
+  const participantName = data.getParticName(participantId).displayedName;
+  const segInfo = data.getSegmentInfo(stimulusId, participantId, segmentId);
+  const catName = data.getCatName(segInfo.category).displayedName;
+  let aoiNames = "No AOI hit"
+  if (segInfo.aoi.length > 0) {
+    aoiNames = segInfo.aoi.map(x => data.getAoiInfo(stimulusId, x).displayedName).join(", ");
+  }
+  return `
+  <div>
+    <div>Participant</div>
+    <div>${participantName}</div>
+  </div>
+  <div>
+    <div>Category</div>
+    <div>${catName}</div>
+  </div>
+  <div>
+    <div>AOI</div>
+    <div>${aoiNames}</div>
+  </div>
+  <div>
+    <div>Event start</div>
+    <div>${segInfo.start} ms</div>
+  </div>
+  <div>
+    <div>Event end</div>
+    <div>${segInfo.end} ms</div>
+  </div>
+  <div>
+    <div>Event duration</div>
+    <div>${(segInfo.end-segInfo.start).toFixed(1)} ms</div>
+  </div>
+  `
 }
 
 function getPrettyBreakStep(numberToBreak, numberOfSteps = 10) {
@@ -401,29 +751,23 @@ function getSteps(numberToBreak) {
   return {numberOfSteps, step: recentStep}
 }
 
-// function getElementIndex(node) {
-//     var index = 0;
-//     while ( (node = node.previousElementSibling) ) {
-//         index++;
-//     }
-//     return index;
-// }
-
 //other event handlers
-function handleRelative() {
+function handleRelative(stimulusId) {
   const timelineSwitch = document.getElementById('SPtoRelative');
-  const yPos = appData.participants.names.length*30;
-  let barwrap = document.getElementsByClassName('barwrap'), xAxes = document.querySelectorAll('.x-gr line');
-  let isToRelative = false, maxDur = appData.participants.maxDuration[appData.stimulus.currentlySelected], from, to, xComponentHtml;
+  const yPos = data.noOfParticipants*30; //PŘEDĚLAT DO BUDOUCNA, CELOU XCOMP DÁT DO CLASSU A TOTO ZDE NEZJIŠŤOVAT
+  let barwrap = document.getElementsByClassName('barwrap');
+  let isToRelative = false, maxDur = data.getStimulHighestEndTime(stimulusId), from, to, xComponentHtml;
   const absoluteSteps = getSteps(maxDur);
 
   if (!timelineSwitch.classList.contains('activebtn3')) {
     isToRelative = true;
     xComponentHtml = getXComponentOfScarf(yPos, {numberOfSteps:10,step:10});
+    document.querySelector('pattern').setAttribute("width", "10%");
     document.getElementById('chxlab').innerHTML = 'Elapsed time [%]';
     timelineSwitch.classList.add('activebtn3')
   } else {
     xComponentHtml = getXComponentOfScarf(yPos, absoluteSteps);
+    document.querySelector('pattern').setAttribute("width", (absoluteSteps.step/(absoluteSteps.numberOfSteps * absoluteSteps.step))*100+"%");
     document.getElementById('chxlab').innerHTML = 'Elapsed time [ms]';
     timelineSwitch.classList.remove('activebtn3')
   }
@@ -433,7 +777,7 @@ function handleRelative() {
   let k = 0;
   for (var i = 0; i < barwrap.length; i++) {
     const participantId = barwrap[i].dataset.pid;
-    const absoluteLength = (appData.participants.sessionDuration[appData.stimulus.currentlySelected][participantId]/maxDur)*100;
+    const absoluteLength = (data.getParticEndTime(stimulusId,participantId)/maxDur)*100;
 
       let animateTag = barwrap[i].getElementsByTagName('animate')[0];
       if (isToRelative) {
@@ -457,18 +801,17 @@ function handleRelative() {
 }
 
 function getXComponentOfScarf(yPosition, breakX) {
-  let lines = "", labels = "", anchor = "text-anchor='start'";
+  let labels = "", anchor = "text-anchor='start'";
   const maxDuration = breakX.numberOfSteps * breakX.step;
   for (var j = 0; j < breakX.numberOfSteps + 1; j++) {
     const currentStepX = (breakX.step*j);
     if (j === breakX.numberOfSteps) {
       anchor = "text-anchor='end'";
     }
-    lines += "<line x1='" + currentStepX/maxDuration*100 +"%' x2='" + currentStepX/maxDuration*100 +"%' y1='0' y2='" + yPosition + "'></line>";
-    labels += "<text x='" + currentStepX/maxDuration*100 + "%' " + anchor + " y='" + (yPosition + 14) + "'>" + currentStepX + "</text>"
+    labels += "<text x='" + currentStepX/maxDuration*100 + "%' " + anchor + "'>" + currentStepX + "</text>"
     anchor = "text-anchor='middle'";
   }
-  return "<g stroke='#cbcbcb' stroke-width='1'>" + lines + "</g><g class='labs'>" + labels + "</g>"
+  return labels
 }
 
 
@@ -531,13 +874,13 @@ function showPopUp(title, content) {
     popUp.style.display="";
 }
 
-function showScarfSettings() {
+function showScarfSettings(stimulusId) {
   const content = `
   <div style="margin-bottom:15px">
-  <button onclick="showAOImod(this)" class="btn4">
+  <button onclick="showAOImod(${stimulusId})" class="btn4">
     Modify AOIs attributes
   </button>
-  <button onclick="showAddAoiVis(this)" class="btn4">
+  <button onclick="showAddAoiVis(${stimulusId})" class="btn4">
     Add AOIs visibility info
   </button>
   </div>
@@ -545,7 +888,7 @@ function showScarfSettings() {
   showPopUp("Scarf Plot Settings", content)
 }
 
-function showAddAoiVis() {
+function showAddAoiVis(stimulusId) {
   const content = `
   <div>
     Upload XML file containing AOIs visibility informations. Only for SMI!
@@ -553,7 +896,7 @@ function showAddAoiVis() {
   <label tabindex="0" for="aoivis-upload" class="btn">
     Upload file
   </label>
-  <input onchange="newAoiVisInfo(event)" id="aoivis-upload" type="file"/>
+  <input onchange="newAoiVisInfo(event)" id="aoivis-upload" data-stimulus="${stimulusId}" type="file"/>
   `;
   showPopUp("Add AOI visibility info", content)
 }
@@ -569,14 +912,13 @@ function showWorkplaceExporter() {
   getDownloadedWorkplace();
 }
 
-function showAOImod() {
-
-  const selectedStimulus = appData.stimulus.currentlySelected;
-  const aoiOrderedArr = getAoiOrderArray(selectedStimulus);
+function showAOImod(selectedStimulus) {
+  //!!
+  const aoiOrderedArr = data.getAoiOrderArray(selectedStimulus);
 
   const content = `
   <div class='gr-line'>
-    <div>Dataset name</div>
+    <div>Original name</div>
     <div>Displayed name</div>
     <div>Color</div>
     <div>Order</div>
@@ -597,15 +939,13 @@ function showAOImod() {
     for (var i = 0; i < aoiOrderedArr.length; i++) {
 
       const currentAoiIndex = aoiOrderedArr[i];
-      const currentColor = getAoiColor(appData.stimulus.currentlySelected, currentAoiIndex);
-      const currentName = appData.aoiCategories.names[selectedStimulus][currentAoiIndex];
-      const currentNameOriginal = appData.aoiCategories.names[selectedStimulus][currentAoiIndex];
+      const aoiInfo = data.getAoiInfo(selectedStimulus, currentAoiIndex);
       
       content += `
       <div class='gr-line'>
-        <div>${currentNameOriginal}</div>
-        <input type='text' value='${currentName}'>
-        <input type='color' value='${currentColor}'>
+        <div>${aoiInfo.originalName}</div>
+        <input type='text' value='${aoiInfo.displayedName}'>
+        <input type='color' value='${aoiInfo.color}'>
         <input type='hidden' value='${currentAoiIndex}'>
         ${printSVGIcon("","onclick='moveRowDown(event)'",'<polyline points="0,4 8,16 16,4" fill="none" stroke="currentColor" stroke-width="1"></polyline>')}
         ${printSVGIcon("","onclick='moveRowUp(event)'",'<polyline points="0,14 8,2 16,14" fill="none" stroke="currentColor" stroke-width="1"></polyline>')}
@@ -754,9 +1094,12 @@ function getDownloadedWorkplace() {
 }
 
 function handleStimulusChange(selectElement) {
-  appData.stimulus.currentlySelected = selectElement.value;
-  document.getElementById('SPtoRelative').classList.remove("activebtn3");
-  document.getElementsByClassName('chartwrap')[0].innerHTML = paintAbsoluteBars();
+  const stimulusId = selectElement.value;
+  const printer = new ScarfPrinter(stimulusId);
+  let relAbsButton = document.getElementById('SPtoRelative');
+  relAbsButton.classList.remove("activebtn3");
+  relAbsButton.setAttribute("onclick",`handleRelative(${stimulusId})`);
+  document.getElementsByClassName('chartwrap')[0].innerHTML = printer.innerPlot;
 }
 
 function getAoiColor (stimulusIndex, aoiIndex) {
@@ -765,38 +1108,21 @@ function getAoiColor (stimulusIndex, aoiIndex) {
   return color
 }
 
-function getAoiOrder(stimulusIndex, aoiIndex, isHtmlRequired = true) {
-  let order = appData.aoiCategories.orders[stimulusIndex]?.[aoiIndex]; //try get custom color
-  if (isHtmlRequired) {
-    if (!order) { return ""}
-    return " style='order:"+order+"'"
-  }
-  if (!order) { return aoiIndex}
-  return order
-}
-
-function getAoiOrderArray(stimulusIndex) {
-  let order = appData.aoiCategories.orders[stimulusIndex];
-  //if does not exist in data, return array of sequence from 0 to N
-  //N ... number of aoi categories for given stimulus
-  if (!order) {return [...Array(appData.aoiCategories.names[stimulusIndex].length).keys()]}
-  return order
-}
 
 function applyAoiModifications(stimulusIndex) { 
   let orderArr = [];
-  //read "form"
-  appData.aoiCategories.colors[stimulusIndex] ||= [];
   const aoiInputs = document.getElementById("aoiPopAttributesTable").getElementsByTagName("input");
   const INPUTS_PER_LINE = 3; //per one aoi category in pop-up modifier
   for (var i = 0; i < aoiInputs.length; i += INPUTS_PER_LINE) {
     const aoiCategoryIndex = Number(aoiInputs[i+2].value);
     const colorValue = aoiInputs[i+1].value;
-    appData.aoiCategories.colors[stimulusIndex][aoiCategoryIndex] = colorValue; //set color
+    const nameValue = aoiInputs[i].value;
+    data.setAoiColor(stimulusIndex, aoiCategoryIndex, colorValue);
+    data.setAoiName(stimulusIndex, aoiCategoryIndex, nameValue);
     orderArr.push(aoiCategoryIndex); //order array
   }
-  appData.aoiCategories.orders[stimulusIndex] = orderArr; //save order array
-  document.getElementsByClassName('chartwrap')[0].innerHTML = paintAbsoluteBars(); //repaint chart
+  data.setAoiOrder(stimulusIndex, orderArr); //save order array
+  document.getElementsByClassName('chartwrap')[0].innerHTML = new ScarfPrinter(stimulusIndex).innerPlot; //repaint chart
   closePopUp();
 }
 
