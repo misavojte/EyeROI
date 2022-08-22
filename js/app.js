@@ -609,7 +609,7 @@ function processDataAsStream(stream) {
   try {
     worker.postMessage(stream, [stream]);
     return true
-  } catch (error) {
+  } catch {
     alert("Error! Your browser does not support a vital function for parsing the data (ReadableStream is not supported as a transferable object). Try Chrome, Edge, Opera or updating your current browser.")
     return false
   }
