@@ -547,7 +547,7 @@ if (files) {
 
   const filesuffix = files[0].name.split('.').pop();
     if (filesuffix === "json" && files.length === 1) {
-      file.text().then(x=>{
+      files[0].text().then(x=>{
         data = new EyeTrackingData(JSON.parse(x));
         printSequenceChart(0)}
       );
