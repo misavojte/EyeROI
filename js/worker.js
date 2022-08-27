@@ -187,7 +187,6 @@ class DataProcessor {
     }
 
     mergeDuplicatedSegments() {
-      //FAULTY!
       //must be sorted beforehand
       const noOfStimuli = this.data.segments.length;
       const noOfParticipants = this.data.participants.data.length;
@@ -222,8 +221,10 @@ class DataProcessor {
               if (currSegment[0] === prevStart && currSegment[1] === prevEnd && currSegment[2] === fixationCategoryId) {
                   
                 // //add AOI id to the previous one
-                // //WARNING! No control wheter the AOI is already in dataset - just assumption!
-                segmentPart[segIdToJoin].push(currSegment[3]);
+                // //Control wheter the AOI is already in dataset
+                if (!segmentPart[segIdToJoin].slice(3).includes(currSegment[3])) {
+                  segmentPart[segIdToJoin].push(currSegment[3]); 
+                }
 
                 mergeCount++;
                 //delete segment from array
@@ -421,11 +422,14 @@ It sends parsed data row by row to DATA PROCESSOR.
 */
 
 class StreamReceiver {
-  constructor() {
+  constructor(noOfFilesToParse) {
     this.rowIndex = 1;
     this.lastRow = "";
     this.decoder = new TextDecoder("utf-8"); //utf-8
     this.isHeaderProcessed = false;
+    this.noOfFilesToParse = noOfFilesToParse;
+    this.filesParsed = 0;
+    this.promise = true;
 
     // this.rowDelimiter = "";
     // this.colDelimiter = "";
@@ -463,13 +467,27 @@ class StreamReceiver {
       // return {processFun, time, stimulus, participant, aoi}
     } else if (header.includes("Event Start Trial Time [ms]")	&& header.includes("Event End Trial Time [ms]")) {
       // // Event Statistics SMI
-      dProcessor = new BeGaze_DProcessor();
+      if (!dProcessor) {
+        dProcessor = new BeGaze_DProcessor();
+      }
       rParser = new BeGaze_RParser(header);
     } else if (header.includes("Recording timestamp")) {
       //Tobii raw
-      dProcessor = new Tobii_DProcessor();
+      if (!dProcessor) {
+        dProcessor = new Tobii_DProcessor();
+      }
       rParser = new Tobii_RParser(header);
     }
+  }
+
+  pumpingDone() {
+    this.filesParsed++;
+    this.isHeaderProcessed = false;
+    this.rowIndex = 1;
+    if (this.filesParsed === this.noOfFilesToParse) {
+      return true
+    }
+    return false
   }
 }
 
@@ -478,43 +496,46 @@ RUNTIME
 ==============
 */
 
-var receiver = new StreamReceiver();
-var dProcessor;
-var rParser;
+var receiver, dProcessor, rParser;
 
 self.onmessage = (event) => {
-  if (event.data === "getEyeTrackingData") {
-    self.postMessage(dProcessor.processedData);
-    dProcessor = null;
-    rParser = null;
-    receiver = new StreamReceiver();
-  } else if (event.data.constructor.name === "ReadableStream") {
-    //process text file (ReadableStream)
-    //receiver.processUint(event.data);
-    processReadableStream(event.data);
+  if (event.data.constructor.name === "ReadableStream") {
+    res()
+    async function res() {
+      await receiver.promise;
+      console.log(receiver.promise);
+      receiver.promise = processReadableStream(event.data)
+    }
+  } else {
+    receiver = new StreamReceiver(event.data);
   }
 }
 
+
 function processReadableStream(rs) {
   const reader = rs.pipeThrough(new TextDecoderStream()).getReader();
-  //const reader = rs.pipeThrough(new JSTextDecoderStream()).getReader();
   const pump = reader => reader.read()
   .then(({ value, done }) => {
     //last chunk? end this
     if (done) {
-      self.postMessage(dProcessor.processedData);
-      dProcessor = null;
-      rParser = null;
-      receiver = new StreamReceiver();
-      //worker.postMessage("getEyeTrackingData");
+      if (receiver.pumpingDone()) {
+        allProcessingDone();
+      }
       return
     }
     receiver.processUint(value);
-    //worker.postMessage(value,[value.buffer]);
     return pump(reader)
   })
 return pump(reader)
   
+}
+
+function allProcessingDone() {
+  self.postMessage(dProcessor.processedData);
+  dProcessor = null;
+  rParser = null;
+  receiver = null;
+  console.log("Parsing worker cleared");
 }
 
 

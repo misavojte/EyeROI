@@ -279,6 +279,12 @@ class ScarfPrinter {
   }
 
   get otherCategoriesLegend() {
+    const catArrLength = data.main.categories.data.length;
+    let nameOfOtherCategoriesGroup = [];
+    for (let i = 2; i < catArrLength; i++) {
+      nameOfOtherCategoriesGroup.push(data.getCatName(i).displayedName);
+    }
+    nameOfOtherCategoriesGroup = nameOfOtherCategoriesGroup.join(" / ");
     let content = "";
     content += `
     <div class="legendItem ac1" data-aoi="c1">
@@ -290,16 +296,18 @@ class ScarfPrinter {
       </div>
     </div>
     `
-    content += `
-    <div class="legendItem acN" data-aoi="cN">
-      <svg width="12" height="4">
-        <rect class="acN" width="100%" height="100%" fill="#bcbcbc"/>
-      </svg>
-      <div>
-        Blink / Unclassified
+    if (catArrLength > 2) {
+      content += `
+      <div class="legendItem acN" data-aoi="cN">
+        <svg width="12" height="4">
+          <rect class="acN" width="100%" height="100%" fill="#bcbcbc"/>
+        </svg>
+        <div>
+          ${nameOfOtherCategoriesGroup}
+        </div>
       </div>
-    </div>
-    `
+      ` 
+    }
     return content
   }
 
@@ -534,19 +542,22 @@ function startDemo() {
 }
 
 function onFileUploadChange(e) {
-console.time("File loaded");
-const file = e.target.files[0];
-if (file) {
+const files = e.target.files;
+if (files) {
 
-  const filesuffix = file.name.split('.').pop();
-    if (filesuffix === "json") {
+  const filesuffix = files[0].name.split('.').pop();
+    if (filesuffix === "json" && files.length === 1) {
       file.text().then(x=>{
         data = new EyeTrackingData(JSON.parse(x));
         printSequenceChart(0)}
       );
     }
     if (filesuffix === "txt" || filesuffix === "tsv") {
-      if(processDataAsStream(file.stream())){
+      //POUPRAVIT
+      //send number of files being processed
+      worker.postMessage(files.length);
+
+      if(processDataAsStream(files)){
         printDataCanvas();
       }
     }
@@ -603,11 +614,14 @@ worker.onmessage = (event) => {
 //     return pump(reader)
 //   }
 
-function processDataAsStream(stream) {
+function processDataAsStream(files) {
   console.time("File parsed in:");
   //transfer ReadableStream to worker
   try {
-    worker.postMessage(stream, [stream]);
+    for (let index = 0; index < files.length; index++) {
+      const stream = files[index].stream();
+      worker.postMessage(stream, [stream]);
+    }
     return true
   } catch {
     alert("Error! Your browser does not support a vital function for parsing the data (ReadableStream is not supported as a transferable object). Try Chrome, Edge, Opera or updating your current browser.")
@@ -630,6 +644,7 @@ function newAoiVisInfo(event) {
       );
     }
   }
+  closePopUp();
 }
 
 function printSequenceChart(stimulusIndex) {
