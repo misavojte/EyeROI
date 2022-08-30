@@ -359,6 +359,7 @@ svg.btn4 {
 }
 
 .chartwrap {
+  position: relative;
   display: grid;
   grid-template-columns: min-content auto;
   column-gap: 4px;
@@ -368,6 +369,11 @@ svg.btn4 {
   width: 100%;
   overflow: auto;
   padding: 0 1px
+}
+
+.charea-holder text {
+  alignment-baseline: hanging;
+  font-size: 12px;
 }
 
 .a-icon {
@@ -397,7 +403,7 @@ svg.btn4 {
 }
 
 .chlegend {
-  font-size: .85rem;
+  font-size: 13.5px;
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
@@ -406,7 +412,7 @@ svg.btn4 {
 }
 
 .chlegendtitle {
-  font-size: .70rem;
+  font-size: 11px;
   text-align: center;
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -417,12 +423,11 @@ svg.btn4 {
   grid-column: span 2;
   font-size: .85rem;
   margin: auto;
-  margin-bottom: 10px
 }
 
 .chylabs {
   display: grid;
-  font-size: .85rem;
+  font-size: 13.5px;
   max-width: 200px;
   align-items: center;
 }

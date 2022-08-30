@@ -195,7 +195,7 @@ class ScarfPrinter {
   get innerPlot() {
     const particiComponents = this.particiComponents;
     return `
-    <div class='chylabs' style='grid-auto-rows:${this.participHeight-this.participGap}px;gap:${this.participGap}px;margin-top:${this.participGap/2}px'>
+    <div class='chylabs' style='grid-auto-rows:${this.participHeight}px' data-gap='${this.participHeight}'>
         ${particiComponents.labels}
     </div>
     <div class='charea-holder'>
@@ -207,7 +207,7 @@ class ScarfPrinter {
           </pattern>
         </defs>
         <rect fill='url(#grid)' stroke='#cbcbcb' stroke-width='1' width='100%' height='${this.xaxispos}' />
-        <svg y='${this.xaxispos+14}' id='chxcomponent' style='overflow:visible;font-size:12px'>
+        <svg y='${this.xaxispos+6}' id='chxcomponent' class='chxlabs'>
           ${getXComponentOfScarf(this.xaxispos, this.breakX)}
         </svg>
         ${particiComponents.bars}
@@ -506,6 +506,126 @@ class AOIVisibilityReader {
   }
 }
 
+class ScarfDownloader {
+  constructor(width, fileType, chartId = 0) {
+    this.width = width;
+    this.fileType = fileType;
+    this.chartId = chartId;
+    let chart = document.getElementsByClassName("chartwrap")[chartId];
+    chart.style.width = width+"px";
+    this.offsetTop = chart.offsetTop;
+    this.offsetHeight = chart.offsetHeight;
+    this.svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${this.offsetHeight}">
+      <style><![CDATA[text{alignment-baseline:hanging;font-size:13.5px}.chxlabs text{font-size:12px}.chylabs text{alignment-baseline:middle}.chltitles text{text-anchor:middle;text-transform:uppercase;font-size:11px}.chlitems text{alignment-baseline:middle}]]></style>
+      ${this.svgPartiLabs}
+      ${this.svgChartArea}
+      ${this.svgXAxisLabel}
+      ${this.svgLegendTitles}
+      ${this.svgLegendItems}
+    </svg>
+    `
+    chart.style.width = "";
+    this.svg = this.svg.replace(/>\s+</g,"><").trim();
+  }
+  get svgPartiLabs() {
+    const htmlCollection = document.getElementsByClassName("chartwrap")[this.chartId].children[0].children;
+    const gap = Number(document.querySelector(".chylabs").dataset.gap);
+    let yPos = gap/2;
+    let result = "";
+    for (let i = 0; i < htmlCollection.length; i++) {
+      const content = htmlCollection[i].innerHTML;
+      const top = htmlCollection[i].offsetTop;
+      result += `<text y="${yPos}">${content}</text>`
+      yPos+=gap;
+    }
+    return `<g class="chylabs">${result}</g>`
+  }
+  get svgChartArea() {
+    const svgArea = document.getElementsByClassName("chartwrap")[this.chartId].children[1];
+    const leftOffset = svgArea.offsetLeft;
+    let svgClone = svgArea.cloneNode(true);
+    let animateTags = svgClone.getElementsByTagName('animate');
+    while (animateTags.length > 0) {
+      animateTags[0].remove();
+    }
+    const innerContent = svgClone.innerHTML;
+    return `<svg x="${leftOffset}" width="${this.width-leftOffset}">${innerContent}</svg>`
+  }
+  get svgXAxisLabel() {
+    const htmlLab = document.getElementsByClassName("chartwrap")[this.chartId].children[2];
+    return `<text x="50%" y="${htmlLab.offsetTop}" text-anchor="middle">${htmlLab.innerHTML}</text>`
+  }
+  get svgLegendTitles() {
+    const htmlTitles = document.getElementsByClassName("chartwrap")[this.chartId].getElementsByClassName("chlegendtitle");
+    let result = "";
+    for (let i = 0; i < htmlTitles.length; i++) {
+      const el = htmlTitles[i];
+      result += `<text x="50%" y="${el.offsetTop}">${el.innerHTML}</text>`
+    }
+    return `<g class="chltitles">${result}</g>`
+  }
+  get svgLegendItems() {
+    const htmlItems = document.getElementsByClassName("chartwrap")[this.chartId].getElementsByClassName("legendItem");
+    let result = "";
+    for (let i = 0; i < htmlItems.length; i++) {
+      const el = htmlItems[i];
+      const symbol = el.children[0];
+      const text = el.children[1];
+      const rectX = symbol.getBoundingClientRect().left-el.getBoundingClientRect().left;
+      const rectY = symbol.getBoundingClientRect().top-el.getBoundingClientRect().top;
+      const textX = text.getBoundingClientRect().left-el.getBoundingClientRect().left;
+      // -2 for uknown reasons x)
+      result += `
+      <svg x="${el.offsetLeft}" y="${el.offsetTop}" width="${el.offsetWidth}" height="${el.offsetHeight}">
+      <svg x="${rectX}" y="${rectY-2}" width="${symbol.width.baseVal.valueInSpecifiedUnits}" height="${symbol.height.baseVal.valueInSpecifiedUnits}">${symbol.innerHTML}</svg>
+      <text x="${textX}" y="50%" alignment-baseline="middle">${text.innerHTML}</text>
+      </svg>`
+    }
+    return `<g class="chlitems">${result}</g>`
+  }
+  get blobSVGURL() {
+    let blob = new Blob([this.svg],{type:'image/svg+xml;charset=utf-8'});
+    const pageURL = window.URL || window.webkitURL || window;
+    return pageURL.createObjectURL(blob)
+  }
+  startDownload(fileName) {
+    let imageToDownload = this.blobSVGURL;
+    if (this.fileType !== "svg") {
+      //prepare canvas
+      let canvas = document.createElement('canvas');
+      //set display size
+      canvas.style.width = this.width+"px";
+      canvas.style.height = this.offsetHeight+"px";
+      //set resolution size
+      let scale = 2;
+      canvas.width = this.width * scale;
+      canvas.height = this.offsetHeight * scale;
+      const ctx = canvas.getContext("2d");
+      //document.body.appendChild(canvas);
+      //adjust coordinates to resolution size
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let chartAreaImg = new Image();
+      chartAreaImg.src = imageToDownload;
+
+      const ft = this.fileType;
+      const w = this.width;
+      const h = this.offsetHeight;
+      chartAreaImg.onload = function() {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(chartAreaImg, 0, 0, w, h);
+        imageToDownload = canvas.toDataURL();
+        triggerDownload(imageToDownload, fileName+"."+ft)
+      }
+      } else {
+        triggerDownload(imageToDownload, fileName+"."+this.fileType)
+      }
+  }
+}
+
 
 // Functions for creating
 // new elements (their HTML)
@@ -535,7 +655,6 @@ function startDemo() {
     return response.json()
   })
   .then(x => {
-    console.log(x);
     data = new EyeTrackingData(x);
     printSequenceChart(0);
   })
@@ -830,7 +949,7 @@ function getXComponentOfScarf(yPosition, breakX) {
     if (j === breakX.numberOfSteps) {
       anchor = "text-anchor='end'";
     }
-    labels += "<text x='" + currentStepX/maxDuration*100 + "%' " + anchor + "'>" + currentStepX + "</text>"
+    labels += "<text x='" + currentStepX/maxDuration*100 + "%' " + anchor + ">" + currentStepX + "</text>"
     anchor = "text-anchor='middle'";
   }
   return labels
@@ -982,122 +1101,13 @@ function closePopUp() {
 }
 
 function getDownloadedScarfPlot() {
-  let gapForYLabs; //will be defined in getYLabs()
-  const originalChartArea = document.getElementById('charea')
-  const originalChartHeight = originalChartArea.getBoundingClientRect().height;
-  let height = originalChartHeight;
+  
   const width = document.getElementById('SPwidthInput').value;
   const type = event.target.innerText.toLowerCase();
+  const name = "ScarfPlot";
 
-  let clonedChartArea = originalChartArea.cloneNode(true);
-  //remove animate tags
-  let animateTags = clonedChartArea.getElementsByTagName('animate');
-  while (animateTags.length > 0) {
-    animateTags[0].remove();
-  }
-
-  const yLabels = getYLabs();
-  const xLabel = getXlabel();
-  const svgLegend = getSVGLegend(); //function adjusting var height as well
-
-  let wholeChartSvg = document.createElement('svg');
-  wholeChartSvg.setAttribute('width', width);
-  wholeChartSvg.setAttribute('height', height);
-  wholeChartSvg.setAttribute('viewBox', '0 0 ' + width + ' ' + height); //for correct scaling
-  wholeChartSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  clonedChartArea.setAttribute('width', width-gapForYLabs);
-  clonedChartArea.setAttribute('x', gapForYLabs);
-  clonedChartArea.removeAttribute('xmlns');
-
-  wholeChartSvg.appendChild(clonedChartArea);
-  wholeChartSvg.appendChild(yLabels);
-  wholeChartSvg.appendChild(xLabel);
-  wholeChartSvg.appendChild(svgLegend);
-  wholeChartSvg.setAttribute("style", "font-size:0.85rem");
-
-  //create SVG legend
-
-  //prepare canvas
-  let canvas = document.createElement('canvas');
-  //set display size
-  canvas.style.width = width+"px";
-  canvas.style.height = height+"px";
-  //set resolution size
-  let scale = 2;
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-  const ctx = canvas.getContext("2d");
-  //adjust coordinates to resolution size
-  ctx.scale(scale, scale);
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  let chartAreaImg = new Image();
-  chartAreaImg.src = getBlobURL(wholeChartSvg);
-
-  chartAreaImg.onload = function() {
-    if (type === 'svg') {
-      triggerDownload(chartAreaImg.src, 'scarfPlot.' + type);
-      return
-    }
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(chartAreaImg, 0, 0, width, height);
-    // document.body.appendChild(canvas);
-    let finalImage = canvas.toDataURL('image/' + type);
-    triggerDownload(finalImage, 'test.' + type);
-  };
-
-  function getYLabs() {
-    const yLabsOrigin = document.getElementById('chylabs');
-    const yLabsItems = yLabsOrigin.childNodes;
-    const yLabsBounding = yLabsOrigin.getBoundingClientRect();
-    gapForYLabs = yLabsBounding.width;
-    let yLabsGroup = document.createElement('g');
-    let htmlString = "";
-    for (var i = 0; i < yLabsItems.length; i++) {
-        const bounding = yLabsItems[i].getBoundingClientRect();
-        const yPosition = (bounding.y+bounding.height/2) - yLabsBounding.y;
-        htmlString += "<text dominant-baseline='middle' y='" + yPosition + "'>" + yLabsItems[i].innerText + "</text>"
-    }
-    yLabsGroup.innerHTML = htmlString;
-    return yLabsGroup
-  }
-
-  function getXlabel() {
-    const label = document.getElementById('chxlab');
-    const bounding = label.getBoundingClientRect();
-    let xLabelGroup = document.createElement('g');
-    xLabelGroup.innerHTML = "<text text-anchor='middle' dominant-baseline='middle' x='50%' y='" + (height+bounding.height/2) + "'>" + label.innerHTML + "</text>";
-    height += bounding.height; //changing variable outside function!
-    return xLabelGroup
-  }
-
-  function getSVGLegend() {
-    let htmlLegend = document.getElementById('chlegend');
-
-    htmlLegend.style.width = width+"px";
-
-    const htmlLegendItems = htmlLegend.childNodes;
-    const htmlLegendBounding = htmlLegend.getBoundingClientRect();
-    let svgInnerString = "";
-    for (var i = 0; i < htmlLegendItems.length; i++) {
-      const bounding = htmlLegendItems[i].getBoundingClientRect();
-
-      svgInnerString += "<rect x='" + (bounding.x-htmlLegendBounding.x+10) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)+2) + "' fill='" + getAoiColor(appData.stimulus.currentlySelected, i) + "' width='12' height='12'></rect>";
-      svgInnerString += "<text x='" + ((bounding.x+19)-htmlLegendBounding.x+10) + "' y='" + (height+(bounding.y-htmlLegendBounding.y)+12) + "'>" + appData.aoiCategories.names[appData.stimulus.currentlySelected][i] + "</text>";
-    }
-    let svgGroup = document.createElement('g');
-    svgGroup.innerHTML = svgInnerString;
-    height += htmlLegendBounding.height; //changing variable outside function!
-    htmlLegend.style.width = "";
-    return svgGroup
-  }
-
-  function getBlobURL(clonedSvg) {
-    let blob = new Blob([clonedSvg.outerHTML],{type:'image/svg+xml;charset=utf-8'});
-    const pageURL = window.URL || window.webkitURL || window;
-    return pageURL.createObjectURL(blob)
-  }
+  const printer = new ScarfDownloader(width, type, 0);
+  printer.startDownload(name);
 }
 
 function triggerDownload(downloadContent,downloadName) {
@@ -1123,13 +1133,6 @@ function handleStimulusChange(selectElement) {
   relAbsButton.setAttribute("onclick",`handleRelative(${stimulusId})`);
   document.getElementsByClassName('chartwrap')[0].innerHTML = printer.innerPlot;
 }
-
-function getAoiColor (stimulusIndex, aoiIndex) {
-  let color = appData.aoiCategories.colors[stimulusIndex]?.[aoiIndex]; //try get custom color
-  if (!color) { color = defColors[aoiIndex%12] }
-  return color
-}
-
 
 function applyAoiModifications(stimulusIndex) { 
   let orderArr = [];
