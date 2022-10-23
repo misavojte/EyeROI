@@ -516,7 +516,7 @@ footer p {
   align-items: center;
 }
 
-.modalHeader {
+.modal-header {
   display: flex;
   justify-content: space-between;
   font-weight: 500;
@@ -530,6 +530,22 @@ footer p {
 
 .modalClose:hover {
   opacity: .85;
+}
+
+.modal-body {
+  width: 100%;
+}
+
+form>div {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+form>div>input, form>div>select {
+  width: 150px;
 }
 
 #SPwidthInput {
@@ -669,7 +685,7 @@ input[type="color"]::-webkit-color-swatch {
   }
   footer {
     font-size: 0.9rem;
-    margin-top: 40  px;
+    margin-top: 40px;
   }
   #dpt-logo {
     width: 280px;

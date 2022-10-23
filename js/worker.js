@@ -484,10 +484,7 @@ class StreamReceiver {
     this.filesParsed++;
     this.isHeaderProcessed = false;
     this.rowIndex = 1;
-    if (this.filesParsed === this.noOfFilesToParse) {
-      return true
-    }
-    return false
+    return this.filesParsed === this.noOfFilesToParse;
   }
 }
 
