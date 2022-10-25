@@ -67,7 +67,7 @@ class EyeTrackingData {
         const originalName = aoiArr[0];
         const displayedName = aoiArr[1] || originalName;
         const color = aoiArr[2] || DEFAULT_COLORS[aoiId];
-        return {originalName, displayedName, color}
+        return {aoiId, originalName, displayedName, color}
     }
 
     getCatName(categoryId) {

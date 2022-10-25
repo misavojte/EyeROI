@@ -144,7 +144,7 @@ main {
   background-position: -2px -2px, -2px -2px, -1px -1px, -1px -1px;
 }
 
-input[type="file"] {
+.hide {
     display: none;
 }
 

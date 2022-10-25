@@ -1,5 +1,5 @@
 import {data} from "./model/eyeTrackingData.js";
-import {DownloadScarfModal, DownloadWorkspaceModal} from "./view/modals.js";
+import {DownloadScarfModal, DownloadWorkspaceModal, ShowScarfSettingsModal} from "./view/modals.js";
 import {ModalFormHandler} from "./controller/modalHandler.js";
 
 let popup;
@@ -46,7 +46,7 @@ class ScarfPrinter {
             ${printSVGIcon("", "id='zoomInScarf' onclick='zoomScarf(1)'", '<path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5z"/>')}
             ${printSVGIcon("deactivated", "id='zoomOutScarf' onclick='zoomScarf(0)'", '<path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/><path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/>')}
             ${printSVGIcon("download-scarf", "", '<path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>')}
-            ${printSVGIcon("", "onclick='showScarfSettings(" + this.stimulusId + ")'", '<path fill-rule="evenodd" d="M10.5 1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4H1.5a.5.5 0 0 1 0-1H10V1.5a.5.5 0 0 1 .5-.5ZM12 3.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Zm-6.5 2A.5.5 0 0 1 6 6v1.5h8.5a.5.5 0 0 1 0 1H6V10a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5ZM1 8a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 1 8Zm9.5 2a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V13H1.5a.5.5 0 0 1 0-1H10v-1.5a.5.5 0 0 1 .5-.5Zm1.5 2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Z"/>')}
+            ${printSVGIcon("js-open-settings", "", '<path fill-rule="evenodd" d="M10.5 1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4H1.5a.5.5 0 0 1 0-1H10V1.5a.5.5 0 0 1 .5-.5ZM12 3.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Zm-6.5 2A.5.5 0 0 1 6 6v1.5h8.5a.5.5 0 0 1 0 1H6V10a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5ZM1 8a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 1 8Zm9.5 2a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V13H1.5a.5.5 0 0 1 0-1H10v-1.5a.5.5 0 0 1 .5-.5Zm1.5 2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5Z"/>')}
           </div>
         <div class="chartwrap">
           ${this.innerPlot}
@@ -336,48 +336,6 @@ class ScarfPrinter {
 
 }
 
-class AOIVisibilityReader {
-    constructor(xml, stimulusId) {
-        this.aoiNodes = xml.getElementsByTagName("DynamicAOI");
-        this.stimulusId = stimulusId;
-    }
-
-    addVisInfo() {
-        for (let i = 0; i < this.aoiNodes.length; i++) {
-            const aoiName = this.aoiNodes[i].querySelector("Name").innerHTML;
-            const aoiKeyFrames = this.aoiNodes[i].getElementsByTagName("KeyFrame");
-            const aoiVisibilityArr = this.processKeyFrames(aoiKeyFrames);
-            console.log(aoiName, aoiVisibilityArr);
-            data.addAoiVis(this.stimulusId, aoiName, aoiVisibilityArr);
-        }
-    }
-
-    processKeyFrames(keyFrames) {
-        let visibilityArr = [];
-        let isAoiCurrentlyVisible = false;
-        for (let i = 0; i < keyFrames.length; i++) {
-            const frame = keyFrames[i];
-            const visibility = frame.querySelector("Visible").innerHTML;
-            if (visibility === "true" && isAoiCurrentlyVisible === false) {
-                const timestamp = frame.querySelector("Timestamp").innerHTML / 1000; //ms
-                visibilityArr.push(timestamp);
-                isAoiCurrentlyVisible = true;
-            }
-            if ((visibility === "false" && isAoiCurrentlyVisible === true)) {
-                const timestamp = frame.querySelector("Timestamp").innerHTML / 1000; //ms
-                visibilityArr.push(timestamp);
-                isAoiCurrentlyVisible = false;
-            }
-            if ((visibility === "true" && i === keyFrames.length - 1)) {
-                const timestamp = data.getStimulHighestEndTime(this.stimulusId);
-                visibilityArr.push(timestamp);
-                isAoiCurrentlyVisible = false;
-            }
-        }
-        return visibilityArr
-    }
-}
-
 //SVG icons from bootstrap
 function printSVGIcon(className, attributeString, svgcontent) {
     return `
@@ -453,24 +411,6 @@ function processDataAsStream(files) {
     }
 }
 
-function newAoiVisInfo(event) {
-    const file = event.target.files[0];
-    const stimulusId = event.target.dataset.stimulus;
-    if (file) {
-        const filesuffix = file.name.split('.').pop();
-        if (filesuffix === "xml") {
-            file.text().then(x => {
-                    const parser = new DOMParser();
-                    const xml = parser.parseFromString(x, "application/xml");
-                    new AOIVisibilityReader(xml, stimulusId).addVisInfo();
-                    document.getElementById('chartsec').innerHTML = new ScarfPrinter(stimulusId, true).wholePlot;
-                }
-            );
-        }
-    }
-    closePopUp();
-}
-
 function printSequenceChart(stimulusIndex) {
 
     let printer = new ScarfPrinter(stimulusIndex);
@@ -485,6 +425,9 @@ function printSequenceChart(stimulusIndex) {
     scarfPlotElement.querySelector('.download-scarf').addEventListener('click',function () {
         showDownloadScarfPlotScreen(stimulusIndex)
     });
+    scarfPlotElement.querySelector('.js-open-settings').addEventListener('click',function () {
+        showScarfSettings(stimulusIndex)
+    })
 
     if (document.getElementById('chartsec')) {
         document.getElementById('chartsec').remove()
@@ -735,102 +678,17 @@ function zoomScarf() {
     chartAnimation.beginElement();
 }
 
-function showPopUp(title, content) {
-    let popUp = document.getElementById("modal");
-    if (!popUp) {
-        popUp = document.createElement('div');
-        popUp.id = 'modal';
-        popUp.classList = 'exterModal';
-        document.body.appendChild(popUp);
-    }
-    popUp.innerHTML = `
-    <div class="interModal">
-      <div class="modalHeader">
-        ${title}
-        <div onclick="closePopUp()" class="modalClose">X</div>
-      </div>
-      ${content}
-    </div>`;
-    popUp.style.display = "";
-}
-
 function showScarfSettings(stimulusId) {
-    const content = `
-  <div style="margin-bottom:15px">
-  <button onclick="showAOImod(${stimulusId})" class="btn4">
-    Modify AOIs attributes
-  </button>
-  <button onclick="showAddAoiVis(${stimulusId})" class="btn4">
-    Add AOIs visibility info
-  </button>
-  </div>
-  `;
-    showPopUp("Scarf Plot Settings", content)
-}
-
-function showAddAoiVis(stimulusId) {
-    const content = `
-  <div>
-    Upload XML file containing AOIs visibility information. Only for SMI!
-  </div>
-  <label tabindex="0" for="aoivis-upload" class="btn">
-    Upload file
-  </label>
-  <input onchange="newAoiVisInfo(event)" id="aoivis-upload" data-stimulus="${stimulusId}" type="file"/>
-  `;
-    showPopUp("Add AOI visibility info", content)
+    new ShowScarfSettingsModal(stimulusId,new ModalFormHandler()).initModal()
 }
 
 //todo ODPRASIT!
 function showDownloadScarfPlotScreen(scarfId) {
-    new DownloadScarfModal(scarfId,new ModalFormHandler()).initModal();
+    new DownloadScarfModal(scarfId,new ModalFormHandler()).initModal()
 }
 
 function showWorkplaceExporter() {
-    new DownloadWorkspaceModal(new ModalFormHandler()).initModal();
-}
-
-function showAOImod(selectedStimulus) {
-    //!!
-    const aoiOrderedArr = data.getAoiOrderArray(selectedStimulus);
-
-    const content = `
-  <div class='gr-line'>
-    <div>Original name</div>
-    <div>Displayed name</div>
-    <div>Color</div>
-    <div>Order</div>
-  </div>
-  <div id='aoiPopAttributesTable'>
-   ${getRows()}
-  </div>
-  <div class='btnholder'>
-    <button onclick='applyAoiModifications(${selectedStimulus})' class='btn'>
-      Apply changes
-    </button>
-  </div>`
-
-    showPopUp("Modify AOIs' atributes", content);
-
-    function getRows() {
-        let content = "";
-        for (let i = 0; i < aoiOrderedArr.length; i++) {
-
-            const currentAoiIndex = aoiOrderedArr[i];
-            const aoiInfo = data.getAoiInfo(selectedStimulus, currentAoiIndex);
-
-            content += `
-      <div class='gr-line'>
-        <div>${aoiInfo.originalName}</div>
-        <input type='text' value='${aoiInfo.displayedName}'>
-        <input type='color' value='${aoiInfo.color}'>
-        <input type='hidden' value='${currentAoiIndex}'>
-        ${printSVGIcon("", "onclick='moveRowDown(event)'", '<polyline points="0,4 8,16 16,4" fill="none" stroke="currentColor" stroke-width="1"></polyline>')}
-        ${printSVGIcon("", "onclick='moveRowUp(event)'", '<polyline points="0,14 8,2 16,14" fill="none" stroke="currentColor" stroke-width="1"></polyline>')}
-      </div>`;
-        }
-        return content
-    }
+    new DownloadWorkspaceModal(new ModalFormHandler()).initModal()
 }
 
 function handleStimulusChange(selectElement) {
@@ -842,6 +700,7 @@ function handleStimulusChange(selectElement) {
     document.getElementsByClassName('chartwrap')[0].innerHTML = printer.innerPlot;
 }
 
+//TODO NAAPLIKOVAT V CONTROLLERU
 function applyAoiModifications(stimulusIndex) {
     let orderArr = [];
     const aoiInputs = document.getElementById("aoiPopAttributesTable").getElementsByTagName("input");
@@ -857,24 +716,4 @@ function applyAoiModifications(stimulusIndex) {
     data.setAoiOrder(stimulusIndex, orderArr); //save order array
     document.getElementsByClassName('chartwrap')[0].innerHTML = new ScarfPrinter(stimulusIndex).innerPlot; //repaint chart
     closePopUp();
-}
-
-function moveRowDown(event) {
-    let rowToMove = event.target.closest('.gr-line');
-    if (rowToMove.nextElementSibling) {
-        //move next row before the current one
-        rowToMove.before(rowToMove.nextElementSibling)
-    } else {
-        rowToMove.parentElement.prepend(rowToMove)
-    }
-}
-
-function moveRowUp(event) {
-    let rowToMove = event.target.closest('.gr-line');
-    if (rowToMove.previousElementSibling) {
-        //move next row after the current one
-        rowToMove.after(rowToMove.previousElementSibling)
-    } else {
-        rowToMove.parentElement.append(rowToMove)
-    }
 }
