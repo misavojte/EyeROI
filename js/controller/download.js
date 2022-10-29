@@ -1,3 +1,5 @@
+//TODO OPRAVIT PRIORITY!
+
 class ContentDownloader {
     /**
      *

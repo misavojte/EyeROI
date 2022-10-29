@@ -1,5 +1,9 @@
 const DEFAULT_COLORS = ["#66c5cc", "#f6cf71", "#f89c74", "#dcb0f2", "#87c55f", "#9eb9f3", "#fe88b1", "#c9db74", "#8be0a4", "#b497e7", "#d3b484", "#b3b3b3"];
 
+class ParticipantInStimulusInfo {
+    
+}
+
 class EyeTrackingData {
 
     setData(data) {
@@ -59,6 +63,12 @@ class EyeTrackingData {
             return 0
         }
         return segmentsInfo[segmentsInfo.length - 1][1]
+    }
+
+    getParticInfo(stimulusIndex, particIndex) {
+        let result = this.getParticName(particIndex);
+        result.endTime = this.getParticEndTime(stimulusIndex, particIndex);
+        return result
     }
 
     // aois getters
