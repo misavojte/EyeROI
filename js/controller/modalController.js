@@ -1,4 +1,3 @@
-import {data} from "../model/eyeTrackingData.js";
 import {Identifier} from "./identifier.js";
 import {
     AoiEditModal,
@@ -8,10 +7,15 @@ import {
     ShowScarfSettingsModal
 } from "../view/modalView.js";
 
-export class ModalFormHandler {
+export class ModalController {
 
     /** @type {Modal} */
     #view
+
+    /** @type {EyeTrackingData} data */
+    constructor(data) {
+        this.data = data;
+    }
 
     /** @param {Event} e */
     handleEvent(e) {
@@ -78,11 +82,11 @@ export class ModalFormHandler {
     }
 
     #initEditAoiModal(stimulusId) {
-        const aoiOrderedArr = data.getAoiOrderArray(stimulusId);
+        const aoiOrderedArr = this.data.getAoiOrderArray(stimulusId);
         let aoisInfo = [];
         for (let i = 0; i < aoiOrderedArr.length; i++) {
             const currentAoiIndex = aoiOrderedArr[i];
-            aoisInfo.push(data.getAoiInfo(stimulusId, currentAoiIndex))
+            aoisInfo.push(this.data.getAoiInfo(stimulusId, currentAoiIndex))
         }
         new AoiEditModal(stimulusId, aoisInfo, this).initModal()
     }
@@ -91,7 +95,7 @@ export class ModalFormHandler {
         const fileName = formData.get('file_name');
         import('./download.js')
             .then(({JsonDownloader}) => {
-                new JsonDownloader(JSON.stringify(data.main),fileName).triggerDownload()
+                new JsonDownloader(JSON.stringify(this.data.main),fileName).triggerDownload()
             })
     }
 

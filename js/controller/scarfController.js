@@ -1,6 +1,5 @@
-import {data} from "../model/eyeTrackingData.js";
 import {ScarfFactory} from "./scarfFactory.js";
-import {ModalFormHandler} from "./modalController.js";
+import {ModalController} from "./modalController.js";
 import {Identifier} from "./identifier.js";
 import {AxisBreaks} from "./utils/prettyBreaks.js";
 
@@ -9,8 +8,14 @@ export class ScarfController {
     /** @type {ScarfView} */
     #view
 
-    constructor(stimulusId) {
+    /**
+     *
+     * @param {int} stimulusId
+     * @param {EyeTrackingData} data
+     */
+    constructor(stimulusId, data) {
         this.stimulusId = stimulusId;
+        this.data = data;
         this.isAbsolute = true;
     }
 
@@ -26,7 +31,7 @@ export class ScarfController {
             const eventType = e.target.dataset.event;
             if (eventType === Identifier.EVENT_OPEN_MODAL) {
                 const parameter = e.target.dataset.parameter? e.target.dataset.parameter : this.stimulusId;
-                new ModalFormHandler().fireEventOpenModal(e.target.dataset.modal,parameter);
+                new ModalController(this.data).fireEventOpenModal(e.target.dataset.modal,parameter);
                 return
             }
             if (eventType === Identifier.EVENT_ZOOM_IN) { this.fireZoom(true); return }
@@ -36,7 +41,7 @@ export class ScarfController {
         if (e.type === 'change') { this.fireStimulusChange(e.target.value); return}
         if (e.type === 'dblclick') {
             const modal = e.target.closest('.js-dblclick').dataset.modal;
-            new ModalFormHandler().fireEventOpenModal(modal, this.stimulusId)
+            new ModalController(this.data).fireEventOpenModal(modal, this.stimulusId)
         }
     }
 
@@ -58,15 +63,13 @@ export class ScarfController {
                 const y = segment.getBoundingClientRect().bottom + window.scrollY - 1;
                 const widthOfView = window.scrollX + document.body.clientWidth
                 const x = e.pageX + WIDTH_OF_TOOLTIP > widthOfView ? widthOfView - WIDTH_OF_TOOLTIP : e.pageX
-                const participantName = data.getParticName(participantId).displayedName;
-                const segInfo = data.getSegmentInfo(this.stimulusId, participantId, id);
-                const categoryName = data.getCatName(segInfo.category).displayedName;
+                const participantName = this.data.getParticName(participantId).displayedName;
+                const segInfo = this.data.getSegmentInfo(this.stimulusId, participantId, id);
+                const categoryName = this.data.getCatName(segInfo.category).displayedName;
                 let aoiNames = "No AOI hit"
                 if (segInfo.aoi.length > 0) {
-                    aoiNames = segInfo.aoi.map(x => data.getAoiInfo(this.stimulusId, x).displayedName).join(", ");
+                    aoiNames = segInfo.aoi.map(x => this.data.getAoiInfo(this.stimulusId, x).displayedName).join(", ");
                 }
-
-
                 this.#view.redrawTooltip({x,y,"start": segInfo.start,"end": segInfo.end,participantName,categoryName,aoiNames});
                 return
             }
@@ -100,15 +103,15 @@ export class ScarfController {
     }
 
     fireTimelineChange() {
-        const absoluteTimeline = new AxisBreaks(data.getStimulHighestEndTime(this.stimulusId))
+        const absoluteTimeline = new AxisBreaks(this.data.getStimulHighestEndTime(this.stimulusId))
         const timelineReplacer = this.isAbsolute ? new AxisBreaks(100) : absoluteTimeline;
-        const iterateTo = data.noOfParticipants
+        const iterateTo = this.data.noOfParticipants;
 
         //todo pokud řazení napravit!
         let participantsReplacer = [];
         const relative = 100 + '%';
         for (let id = 0; id < iterateTo; id++) {
-            const absolute = (data.getParticEndTime(this.stimulusId, id)/absoluteTimeline.maxLabel)*100 + '%';
+            const absolute = (this.data.getParticEndTime(this.stimulusId, id)/absoluteTimeline.maxLabel)*100 + '%';
             const from = this.isAbsolute ? absolute : relative;
             const to = this.isAbsolute ? relative : absolute;
             participantsReplacer.push({id, from, to})
@@ -120,6 +123,6 @@ export class ScarfController {
     }
 
     getFilling(stimulusId = 0) {
-        return new ScarfFactory(stimulusId, data).getViewFilling()
+        return new ScarfFactory(stimulusId, this.data).getViewFilling()
     }
 }

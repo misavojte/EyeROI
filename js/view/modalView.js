@@ -5,7 +5,7 @@ class Modal {
     /**
      *
      * @param {string} title
-     * @param {ModalFormHandler} controller
+     * @param {ModalController} controller
      */
     constructor(title, controller) {
         this.controller = controller;
