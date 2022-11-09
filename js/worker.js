@@ -150,7 +150,7 @@ class DataProcessor {
 
   class BeGaze_DProcessor extends DataProcessor {
     get processedData() {
-      //sort by time
+      //by time
       this.sortSegments();
       //merge fixation events to one with multiple aois
       const mergingInfo = this.mergeDuplicatedSegments();
@@ -177,7 +177,7 @@ class DataProcessor {
       for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
         for (let participantId = 0; participantId < noOfParticipants; participantId++) {
           let segmentPart = this.data.segments[stimulusId][participantId];
-          segmentPart.sort(sortFn)
+          segmentPart? segmentPart.sort(sortFn) : console.log(segmentPart); //HOT FIX
         }
       }
       //sort by start time in segment array (index 0)
